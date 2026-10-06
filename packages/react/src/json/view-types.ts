@@ -4,6 +4,7 @@ import { type ValuePath } from '@script-it/json-views-core'
 import { type CompiledJsonViewMetadata } from '@script-it/json-views-core'
 import { type JsonViewSchemaExternalWidgetRenderer } from './schema-value.js'
 import type { JsonValueReplacement } from '@script-it/json-views-core'
+import type { JsonViewsTableCellOptions } from '../structured-data/table-cell-options.js'
 
 
 export interface JsonViewJsonEditing {
@@ -43,6 +44,8 @@ export interface JsonViewerProps {
   sourceVisible?: boolean
   onSourceVisibleChange?: (visible: boolean) => void
   sourceControl?: ReactNode
+  /** Clamps tall table cells and reveals one on selection (default), or lets rows grow to fit. */
+  tableCells?: JsonViewsTableCellOptions
   uiSize?: UiSize
   viewsEnabled?: boolean
   /** CSV is already tabular, irrespective of JSON prediction confidence. */

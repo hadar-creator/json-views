@@ -18,6 +18,7 @@ import { GeneralRecordView, RecordView } from './record-view.js'
 import { ProjectedTableView } from './table-view.js'
 import { KanbanView } from './kanban-view.js'
 import { useViewerState } from '../viewer-state.js'
+import { TableCellOptionsContext } from '../structured-data/table-cell-options.js'
 
 const VIEW_TAB_CLASS = 'h-7 shrink-0 gap-1.5 rounded-md px-2 py-0 text-xs font-medium text-muted-foreground shadow-none hover:bg-accent hover:text-foreground data-[state=active]:bg-accent data-[state=active]:text-foreground data-[state=active]:shadow-none [&>svg]:shrink-0'
 
@@ -204,6 +205,7 @@ export function JsonViewer({
   renderExternalWidget,
   renderMarkdown,
   sourceControl, sourceContent, sourceVisible, onSourceVisibleChange,
+  tableCells,
   uiSize,
   viewsEnabled = true,
   tabularRoot = false,
@@ -395,6 +397,7 @@ export function JsonViewer({
   }
 
   return (
+    <TableCellOptionsContext.Provider value={tableCells}>
     <Tabs value={selectedTab} onValueChange={(value) => { if (value !== 'source') setActiveTab(value); onSourceVisibleChange?.(value === 'source') }} className={cn('flex min-h-0 flex-1 flex-col bg-background text-foreground', fillHeight && 'h-full')}>
       <div data-id="json-viewer-content" className={cn('flex min-h-0 w-full max-w-none flex-1 flex-col px-3 py-4 sm:px-6 sm:py-5', fillHeight && 'h-full')}>
         {hasToolbar && (
@@ -489,6 +492,7 @@ export function JsonViewer({
         </TabsContent>
       </div>
     </Tabs>
+    </TableCellOptionsContext.Provider>
   )
 }
 

@@ -7,8 +7,8 @@ import type { ColumnFilterConfig, ColumnFilterRule, SortConfig, SortDirection, T
 export type { TabularObjectArrayViewProps } from './structured-data/table-types.js'
 export { ExpandValueButton, ValueCell, ValueCellContent } from './structured-data/value-cell.js'
 import { useViewerState } from './viewer-state.js'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useVirtualizer } from '@tanstack/react-virtual'
+import { useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useVirtualizer, type VirtualItem } from '@tanstack/react-virtual'
 import { File, Plus } from 'lucide-react'
 import { UI_SIZE_SCALE } from './lib/ui-size.js'
 import { Tooltip, TooltipContent, TooltipTrigger } from './primitives/tooltip.js'
@@ -20,6 +20,9 @@ import { RowSelectionIcon } from './structured-data/row-selection-icon.js'
 import { CopyJsonAction } from './structured-data/copy-json-action.js'
 import { useJsonViewsDevice } from './browser-device.js'
 import { StructuredValueCellFrame } from './structured-data/atomic-value-editor.js'
+import { TabularDataCell } from './structured-data/tabular-data-cell.js'
+import { TableCellOptionsContext, resolveTableCellOptions } from './structured-data/table-cell-options.js'
+import { useDismiss } from './lib/use-dismiss.js'
 
 const DEFAULT_COLUMN_WIDTH = 200
 const MIN_COLUMN_WIDTH = 80
@@ -145,6 +148,17 @@ export function TabularObjectArrayView({
   const numberAtPath = useJsonSourceLiterals()
   const { tables: tableState } = useViewerState()
   const compact = useJsonViewsDevice() === 'mobile'
+  const cellOptions = resolveTableCellOptions(useContext(TableCellOptionsContext))
+  // One selected cell at a time shows its whole value; any press outside it
+  // (other than in a popup its editor opened) or Escape puts it back.
+  const [revealedCell, setRevealedCell] = useState<{ row: VirtualItem['key']; column: string; height: number }>()
+  const revealedCellRef = useRef<HTMLTableCellElement | null>(null)
+  useDismiss({
+    enabled: revealedCell !== undefined,
+    insideRefs: [revealedCellRef],
+    ignoreAnchoredPopups: true,
+    onDismiss: () => setRevealedCell(undefined),
+  })
   const cacheKey = JSON.stringify([filePath, viewStateKey])
   const savedTableState = filePath ? tableState.get(cacheKey) : undefined
   const columnLabel = (column: string) => columnLabels?.[column] ?? column
@@ -487,6 +501,7 @@ export function TabularObjectArrayView({
         'relative isolate',
         fillHeight ? 'flex max-h-full min-h-0 flex-col gap-1' : 'mb-4',
       )}
+      style={cellOptions.maxHeight === undefined ? undefined : { '--json-views-table-cell-max-height': cellOptions.maxHeight } as CSSProperties}
     >
       {compact && visibleColumns.length > 1 && <p className="json-views-table-hint">Swipe for more fields · tap a value to open or edit</p>}
       <div
@@ -522,7 +537,9 @@ export function TabularObjectArrayView({
                 to clear the body, not just tie with it — a `<tbody>` element at
                 an equal rank wins on DOM order and paints over the header while
                 its row scrolls underneath. Keep body-row decorations out of the
-                positioned stack rather than adding a fourth tier. */}
+                positioned stack rather than adding a fourth tier. The one
+                exception is transient: a revealed cell (15) floats its value
+                over later rows and still scrolls under both header tiers. */}
             <thead>
               {hiddenColumns.length > 0 && (
                 <tr>
@@ -732,18 +749,28 @@ export function TabularObjectArrayView({
                               ? renderCell({ value, rowIndex: originalIndex, column: col, open: openCell })
                               : <ValueCell value={value} onOpen={openCell} />
                           })()
+                          // The title cell's click opens its record, which
+                          // already shows the whole value.
+                          const revealable = cellOptions.reveal && col !== visibleTitleColumn
+                          const revealedHeight = revealable && revealedCell?.row === virtualRow.key && revealedCell.column === col
+                            ? revealedCell.height
+                            : undefined
                           return (
-                            <td
+                            <TabularDataCell
                               key={col}
-                              data-pinned={compact && col === controlColumn || undefined}
-                              className={`tabular-data-cell overflow-hidden border-r border-border p-0 last:border-r-0 ${isLastRow ? '' : 'border-b border-border'} ${highlightCell?.row === originalIndex && highlightCell?.col === col ? 'animate-[highlight-fade_1.5s_ease-out]' : ''}`}
+                              cellRef={revealedHeight === undefined ? undefined : revealedCellRef}
+                              clamped={cellOptions.clamp}
+                              pinned={compact && col === controlColumn}
+                              revealedHeight={revealedHeight}
+                              onReveal={revealable ? (height) => setRevealedCell({ row: virtualRow.key, column: col, height }) : undefined}
+                              className={`tabular-data-cell border-r border-border p-0 last:border-r-0 ${isLastRow ? '' : 'border-b border-border'} ${highlightCell?.row === originalIndex && highlightCell?.col === col ? 'animate-[highlight-fade_1.5s_ease-out]' : ''}`}
                               style={{ width, minWidth: width, maxWidth: width }}
                             >
                               {col === controlColumn && col !== visibleTitleColumn && selectable ? <div className="relative h-full pl-5">
                                 <span className="absolute inset-y-0 left-3 z-10 flex items-center">{rowControl}</span>
                                 {cellContent}
                               </div> : cellContent}
-                            </td>
+                            </TabularDataCell>
                           )
                         })}
                         {onAddColumn && <td aria-hidden className={`${isLastRow ? '' : 'border-b border-border'} p-0`} />}

@@ -167,6 +167,23 @@ const widgets = createDefaultWidgetRegistry().register('date', {
 
 For optional dates, `JSONContent` sets Clear to `null` by default. Pass `clearBehavior="remove"` when the host should remove the property instead.
 
+### Tall table cells
+
+Table cells clip values taller than `9rem` (about six lines), so long text and wrapped choices keep rows scannable. Selecting a clipped cell floats its whole value over the rows below without changing any row height; editing a cell opens its editor in that same surface. A record's title cell keeps opening the record, which shows the whole value. Configure this with the optional `tableCells` prop on `JSONContent`, `CSVContent`, or `JsonViewer`:
+
+```tsx
+<JSONContent
+  content={content}
+  tableCells={{
+    overflow: 'clamp', // default; 'grow' lets rows fit their tallest value
+    maxHeight: 160,    // pixels or any CSS length; default '9rem'
+    reveal: 'select',  // default; 'none' keeps clipped cells clipped
+  }}
+/>
+```
+
+Hosts can also set the limit in CSS, per container or breakpoint, with `--json-views-table-cell-max-height`; a `maxHeight` prop takes precedence for its viewer.
+
 Built-in `select` and `multi-select` widgets are creatable. Descriptor `options` provide the initial suggestions, while new string values remain valid and are inferred back into the effective option list wherever the same schema declaration applies.
 
 Use descriptor `optionColors` to assign a palette color per option. With writable annotations, the menu shows a palette button beside each option and persists the selected color through the annotation host callback.
@@ -181,7 +198,7 @@ JSON Views descriptors are not JSON Schema. The packaged `@script-it/json-views-
 
 `JSONContent` includes `JsonViewsSurface` and scopes its styles and presentation state to that instance. State is in-memory unless the host supplies the presentation-state callbacks above. Navigation and hidden columns are never stored in a module-global cache. Each `JsonViewsProvider` also owns independent default registries. No host Tailwind installation is required. Use `theme="light"` or `theme="dark"` for explicit sibling themes; `inherit` reads the nearest host `data-json-views-theme`, `.light`, or `.dark`, falling back to light. It does not independently choose an OS theme.
 
-Override semantic tokens on a containing element with `--json-views-background`, `--json-views-foreground`, `--json-views-card`, `--json-views-border`, `--json-views-muted`, `--json-views-accent`, `--json-views-primary`, `--json-views-ring`, their foreground companions, and `--json-views-font-family`. Popups receive the same theme and tokens in a per-instance portal root. Use `portalContainer` for a host modal/overlay boundary; the supplied element should belong to the same document. `JsonViewsSurface` is exported for compositions using lower-level components.
+Override semantic tokens on a containing element with `--json-views-background`, `--json-views-foreground`, `--json-views-card`, `--json-views-border`, `--json-views-muted`, `--json-views-accent`, `--json-views-primary`, `--json-views-ring`, their foreground companions, `--json-views-font-family`, and `--json-views-table-cell-max-height`. Popups receive the same theme and tokens in a per-instance portal root. Use `portalContainer` for a host modal/overlay boundary; the supplied element should belong to the same document. `JsonViewsSurface` is exported for compositions using lower-level components.
 
 ```css
 .product-json-viewer {

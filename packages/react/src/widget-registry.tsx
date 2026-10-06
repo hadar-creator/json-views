@@ -64,14 +64,18 @@ function common(props: JsonViewEditWidgetProps) {
 }
 
 const TextEditWidget: JsonViewEditWidget = (props) => {
-  const Control = props.descriptor.multiline === true ? TextareaWidget : TextWidget
+  const multiline = props.descriptor.multiline === true
+  const Control = multiline ? TextareaWidget : TextWidget
   return (
   <Control
     {...common(props)}
+    // Grows with its draft like the Markdown editor, so editing a revealed
+    // table cell shows the whole value instead of a four-line scroller.
+    autoSize={multiline}
     uiHint={{
       type: 'text',
       placeholder: typeof props.descriptor.placeholder === 'string' ? props.descriptor.placeholder : undefined,
-      multiline: props.descriptor.multiline === true,
+      multiline,
     }}
   />
   )

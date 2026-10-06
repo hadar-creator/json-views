@@ -11,6 +11,7 @@ import type { UiSize } from '../lib/ui-size.js'
 import type { FileContentEditState } from '../file-content-edit-state.js'
 import { useOptimisticTextDocument } from '../structured-data/use-optimistic-text-document.js'
 import { useMetadataPersistence, type MetadataPersistence } from '../structured-data/use-metadata-persistence.js'
+import type { JsonViewsTableCellOptions } from '../structured-data/table-cell-options.js'
 import { JsonViewer } from './json-view.js'
 import type { JsonViewSchemaExternalWidgetRenderer } from './schema-value.js'
 import { useJsonViewsRegistries } from '../widget-registry.js'
@@ -97,6 +98,8 @@ export interface StructuredDataContentProps {
   sourceVisible?: boolean
   onSourceVisibleChange?: (visible: boolean) => void
   clearBehavior?: JsonViewClearBehavior
+  /** Clamps tall table cells and reveals one on selection (default), or lets rows grow to fit. */
+  tableCells?: JsonViewsTableCellOptions
   onDraftRowsChange?: (paths: readonly ValuePath[]) => void
   renderMarkdown?: (content: string) => ReactNode
   renderExternalWidget?: JsonViewSchemaExternalWidgetRenderer
@@ -132,7 +135,7 @@ function StructuredDataContentSession({
   content, adapter, documentId, revision, metadata, metadataPersistence, presentationState,
   onMetadataChange, onRequestMetadataPersistence, metadataConversionConfirmation = 'viewer', allowRootArrayWrapping = true,
   path, uiSize, fillHeight = false, edit, onSave, isSaving, isDirty, saveError, sourceVisible, onSourceVisibleChange, clearBehavior = 'null',
-  onDraftRowsChange, renderExternalWidget, renderMarkdown,
+  tableCells, onDraftRowsChange, renderExternalWidget, renderMarkdown,
 }: StructuredDataContentProps) {
   const { types } = useJsonViewsRegistries()
   const [editorGeneration, setEditorGeneration] = useState(0)
@@ -499,7 +502,7 @@ function StructuredDataContentSession({
       <JsonViewer compiled={compiled} defaultKey={path?.split('/').pop() || 'root'} filePath={documentId ?? path}
         sourceContent={sourceEditor} sourceVisible={showingSource} onSourceVisibleChange={setShowingSource}
         tabularRoot={adapter.format === 'csv'}
-        editing={editing} onCurrentPathChange={rememberSourcePaths} renderExternalWidget={renderExternalWidget} renderMarkdown={renderMarkdown} sourceControl={sourceControl} uiSize={uiSize} fillHeight={fillHeight} />
+        editing={editing} onCurrentPathChange={rememberSourcePaths} renderExternalWidget={renderExternalWidget} renderMarkdown={renderMarkdown} sourceControl={sourceControl} tableCells={tableCells} uiSize={uiSize} fillHeight={fillHeight} />
       </EditBaseContext.Provider>
       </JsonSourceLiteralsProvider>
       </JsonRendererBoundary>

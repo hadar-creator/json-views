@@ -191,7 +191,11 @@ export function StructuredValueCellFrame({
         title={onActivate ? activationLabel : undefined}
         className={cn(
           'flex min-h-7 min-w-0 flex-1 items-center',
-          fillCell && 'self-stretch',
+          // Auto margins centre a value like `items-center` does, but drop
+          // to zero when a clamped table cell is shorter than the value, so
+          // it starts at the top instead of losing its first lines above
+          // the clip.
+          fillCell && 'self-stretch *:my-auto',
           // The actions overlay the trailing edge, so the value ends before
           // their lane: truncation stops short of the chip rather than being
           // covered by it. Reserved unconditionally — sizing it on hover
@@ -280,7 +284,9 @@ function AtomicValueDirectEditor({
     if (!multiline || !textareaRef.current) return
     const textarea = textareaRef.current
     textarea.style.height = 'auto'
-    textarea.style.height = `${Math.max(minHeight ?? 0, textarea.scrollHeight)}px`
+    // A border-box height also holds the borders `scrollHeight` leaves out.
+    const borders = textarea.offsetHeight - textarea.clientHeight
+    textarea.style.height = `${Math.max(minHeight ?? 0, textarea.scrollHeight + borders)}px`
   }, [draft, minHeight, multiline])
 
   const commit = async (nextBoolean?: boolean) => {
