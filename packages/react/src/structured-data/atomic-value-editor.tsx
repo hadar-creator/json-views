@@ -9,6 +9,7 @@ import {
 import { Pencil } from 'lucide-react'
 
 import { cn } from '../lib/cn.js'
+import { submitsOnEnter, useEnterKeyBehavior, type EnterKeyBehavior } from '../lib/enter-key.js'
 import type { AtomicValue } from './atomic-value.js'
 import { StructuredCellFillContext } from './structured-cell-fill-context.js'
 import { useEditBaseChanged } from './edit-base.js'
@@ -20,6 +21,8 @@ interface AtomicValueEditorProps {
   children: ReactNode
   className?: string
   editorClassName?: string
+  /** Long-form text keeps Enter for line breaks and saves on Cmd/Ctrl+Enter. */
+  enterKey?: EnterKeyBehavior
   label: string
   multiline?: boolean
   onCommit: (value: AtomicValue) => Promise<void>
@@ -59,6 +62,7 @@ export function AtomicValueEditor({
   children,
   className,
   editorClassName,
+  enterKey,
   label,
   multiline = false,
   onCommit,
@@ -85,6 +89,7 @@ export function AtomicValueEditor({
     const editor = (
       <AtomicValueDirectEditor
         controlClassName={editorClassName}
+        enterKey={enterKey}
         label={label}
         disabled={saving}
         minHeight={editorMinHeight}
@@ -247,6 +252,7 @@ export function StructuredValueCellFrame({
 function AtomicValueDirectEditor({
   controlClassName,
   disabled = false,
+  enterKey: preferredEnterKey,
   label,
   minHeight,
   multiline,
@@ -256,6 +262,7 @@ function AtomicValueDirectEditor({
 }: {
   controlClassName?: string
   disabled?: boolean
+  enterKey?: EnterKeyBehavior
   label: string
   minHeight?: number
   multiline: boolean
@@ -271,6 +278,7 @@ function AtomicValueDirectEditor({
   const originalValueRef = useRef(value)
   const attemptedCommitRef = useRef(false)
   const baseChanged = useEditBaseChanged()
+  const enterKey = useEnterKeyBehavior(preferredEnterKey)
 
   useEffect(() => {
     containerRef.current?.querySelector<HTMLElement>('input, textarea')?.focus({ preventScroll: multiline })
@@ -337,8 +345,7 @@ function AtomicValueDirectEditor({
           onCancel()
           return
         }
-        const isTextarea = event.target instanceof HTMLTextAreaElement
-        if (event.key === 'Enter' && (!isTextarea || event.metaKey || event.ctrlKey)) {
+        if (submitsOnEnter(event, { multiline: event.target instanceof HTMLTextAreaElement, enterKey })) {
           event.preventDefault()
           void commit()
         }

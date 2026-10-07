@@ -46,6 +46,11 @@ export interface JsonViewWidgetDefinition {
   display?: JsonViewDisplayWidget
   /** Optional single-action editor; returns an editor-model candidate. */
   quickEdit?: (value: unknown) => unknown
+  /** What a plain Enter does in the editor's multiline controls. `'submit'`
+   *  (default) saves, and Shift+Enter breaks the line; `'newline'` keeps
+   *  Enter for line breaks and saves on Cmd/Ctrl+Enter, for long-form
+   *  documents. On mobile, Return always breaks the line. */
+  enterKey?: 'submit' | 'newline'
 }
 
 export type JsonViewWidgetRegistration = JsonViewEditWidget | JsonViewWidgetDefinition
@@ -201,7 +206,9 @@ export class JsonViewWidgetRegistry {
     // memo/forwardRef components are React component objects at runtime.
     const registration = typeof widget === 'object' && widget !== null && 'editor' in widget
       ? widget : { editor: widget as JsonViewEditWidget }
-    this.widgets.set(type, Object.freeze({ display: this.widgets.get(type)?.display, ...registration }))
+    // Replacing only the editor keeps the type's display and Enter behavior.
+    const previous = this.widgets.get(type)
+    this.widgets.set(type, Object.freeze({ display: previous?.display, enterKey: previous?.enterKey, ...registration }))
     this.changed()
     return this
   }
@@ -238,9 +245,9 @@ export function createDefaultWidgetRegistry(): JsonViewWidgetRegistry {
     ['date', { editor: DateEditWidget, display: DateDisplayWidget }],
     ['url', LinkedTextEditWidget],
     ['email', LinkedTextEditWidget],
-    ['markdown', MarkdownEditWidget],
-    ['html', MarkdownEditWidget],
-    ['body', MarkdownEditWidget],
+    ['markdown', { editor: MarkdownEditWidget, enterKey: 'newline' }],
+    ['html', { editor: MarkdownEditWidget, enterKey: 'newline' }],
+    ['body', { editor: MarkdownEditWidget, enterKey: 'newline' }],
   ])
 }
 

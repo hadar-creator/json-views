@@ -11,6 +11,7 @@ import {
   type DateTypeDescriptor,
 } from '@script-it/json-views-core'
 import { cn } from '../lib/cn.js'
+import { submitsOnEnter } from '../lib/enter-key.js'
 import { MenuSelect } from '../primitives/menu-select.js'
 import {
   DropdownMenu,
@@ -299,6 +300,15 @@ export function DateValueEditor({
             event.preventDefault()
             event.stopPropagation()
             cancel()
+            return
+          }
+          // Enter in a field (the time, the Include time checkbox) saves the
+          // draft; a day or other button keeps its own Enter action.
+          if (event.target instanceof HTMLButtonElement) return
+          if (submitsOnEnter(event, { multiline: false, enterKey: 'submit' })) {
+            event.preventDefault()
+            event.stopPropagation()
+            save()
           }
         }}
       >

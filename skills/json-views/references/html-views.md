@@ -26,7 +26,7 @@ For fields with paired API representations, `sync-bind="part.plain_text"` writes
 
 ## HTML interaction nuances
 
-Range commits at pointer/keyboard completion; text and number commit on blur or Enter; textarea uses blur or Ctrl/Cmd+Enter. Escape cancels. A failed native edit can be retried by completing the interaction again. Shared editors appear in the product layer, outside the authored CSS.
+Range commits at pointer/keyboard completion; text, number, and textarea commit on blur or Enter, and Shift+Enter inserts a line break in a textarea (on mobile, Return inserts it and Ctrl/Cmd+Enter commits). Escape cancels. A failed native edit can be retried by completing the interaction again. Shared editors appear in the product layer, outside the authored CSS.
 
 - `jv-value` attribute on progress/meter: bind the numeric value property.
 - `jv-attr-<attribute>`: read a scalar into an allowed attribute: title, aria-label, aria-valuenow, aria-valuetext, x/y/cx/cy/x1/x2/y1/y2/width/height/r/rx/ry/fill/stroke/opacity. URLs are not permitted in attributes.

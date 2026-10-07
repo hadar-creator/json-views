@@ -272,6 +272,8 @@ function NodeView({
     )
     return atomicEditing ? (
       <AtomicValueEditor
+        // Shown as Markdown, the string is a document: Enter breaks the line.
+        enterKey={renderAsMarkdown && renderMarkdown ? 'newline' : undefined}
         label={currentLabel}
         multiline={node.includes('\n')}
         onCommit={(nextValue) => atomicEditing.commit(currentJsonPath, nextValue)}
@@ -779,6 +781,7 @@ function ObjectView({ obj, navigateTo, currentJsonPath, atomicEditing, renderMar
                     return (
                       <AtomicValueEditor
                         actions={expandAction}
+                        enterKey="newline"
                         label={k}
                         multiline
                         onCommit={(nextValue) => atomicEditing.commit(jsonPath, nextValue)}

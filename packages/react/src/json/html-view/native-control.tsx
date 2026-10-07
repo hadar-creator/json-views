@@ -1,6 +1,7 @@
 import { createElement, useContext, useEffect, useRef, useState } from 'react'
 import type { ValuePath } from '@script-it/json-views-core'
 import { EditBaseContext } from '../../structured-data/edit-base.js'
+import { submitsOnEnter, useEnterKeyBehavior, type EnterKeyEvent } from '../../lib/enter-key.js'
 import type { JsonViewJsonEditing } from '../view-types.js'
 
 export function NativeHtmlControl({ tag, props, path, value, editing, report }: { tag: string; props: Record<string, unknown>; path: ValuePath; value: unknown; editing?: JsonViewJsonEditing; report: (message: string) => void }) {
@@ -11,6 +12,7 @@ export function NativeHtmlControl({ tag, props, path, value, editing, report }: 
   const original = useRef<{ base?: string; path: ValuePath }>({ base, path })
   const pending = useRef(false), changed = useRef(false), draftRef = useRef(draft)
   const type = props.type ?? 'text'
+  const enterKey = useEnterKeyBehavior()
   useEffect(() => { if (!active) { const next = value == null ? '' : String(value); setDraft(next); draftRef.current = next } }, [value, active])
   const start = () => { if (!active) { original.current = { base, path: [...path] }; setActive(true) } }
   const cancel = () => { changed.current = false; setActive(false); draftRef.current = value == null ? '' : String(value); setDraft(draftRef.current) }
@@ -40,9 +42,9 @@ export function NativeHtmlControl({ tag, props, path, value, editing, report }: 
     onBlur: () => { void commit() },
     onPointerUp: () => { if (type === 'range') void commit() },
     onKeyUp: () => { if (type === 'range') void commit() },
-    onKeyDown: (event: { key: string; ctrlKey: boolean; metaKey: boolean; preventDefault: () => void }) => {
+    onKeyDown: (event: EnterKeyEvent & { preventDefault: () => void }) => {
       if (event.key === 'Escape') { event.preventDefault(); cancel(); report('') }
-      if (event.key === 'Enter' && (tag !== 'textarea' || event.ctrlKey || event.metaKey)) { event.preventDefault(); void commit() }
+      if (submitsOnEnter(event, { multiline: tag === 'textarea', enterKey })) { event.preventDefault(); void commit() }
     },
   })
 }

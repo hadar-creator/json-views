@@ -155,6 +155,8 @@ Custom descriptor properties are preserved and passed to both validation and edi
 
 Editors receive `value`, `stringValue`, `descriptor`, `disabled`, `error`, and `onChange`/`onCommit`/`onCancel`. `onChange` updates the local draft; `onCommit(value)` submits a candidate, while `onCommit()` submits the current draft. Respect `disabled` while a save is pending. An optional display receives the canonical JSON value, `compact`, `onOpen`, and the host Markdown renderer. Object and array values use the same widget contract, including at the current/root location, with an Expand action for structural inspection.
 
+A registration's `enterKey` sets what a plain Enter does in the editor's multiline controls: `'submit'` (default) saves and leaves Shift+Enter for a line break, while `'newline'` keeps Enter for line breaks and saves on Ctrl/Cmd+Enter, as the built-in `markdown`, `body`, and `html` editors do. Replacing only a type's editor keeps its `enterKey`. A widget that handles Enter itself, such as a code editor, calls `event.preventDefault()` on that keydown to keep it.
+
 Core `filterOperators`, `matchesFilter`, and `compare` supply custom filtering and ordering. Comparators must define a consistent order. Register implementations before compiling annotations; use registry methods to replace or unregister them. Registries notify mounted viewers of changes. Create a provider-scoped registry or clone when behavior must differ across instances. See the [complete extension contract](annotation-spec.md#extension-lifecycle) and the [working custom-object consumer](../examples/consumer/src/main.tsx).
 
 Registrations are additive. Replacing only a type's editor preserves its existing display widget:
@@ -229,7 +231,9 @@ Accepted values are `null`, `YYYY-MM-DD`, and ISO 8601 date-times with seconds. 
 
 ### Editor behavior
 
-Clicking a date opens its calendar immediately. Day, time, and timezone changes remain in a draft until Save; Cancel and Escape discard the draft. Enabling time requires a valid hour and minute and saves seconds. Floating date-times remain timezone-less unless the user chooses a timezone. Changing between timezone offsets preserves the instant; adding or removing a timezone preserves the displayed wall-clock time. Disabling time warns before saving the calendar date alone.
+Enter saves a field and Escape cancels it; leaving a field also saves. In multiline text, Shift+Enter inserts a line break. Long-form Markdown, body, and HTML fields keep Enter for line breaks and save on Ctrl/Cmd+Enter. On mobile, where soft keyboards have no Shift+Enter, Return always inserts a line break in multiline fields, and leaving the field or Ctrl/Cmd+Enter saves.
+
+Clicking a date opens its calendar immediately. Day, time, and timezone changes remain in a draft until Save, or Enter in the time field; Cancel and Escape discard the draft. Enabling time requires a valid hour and minute and saves seconds. Floating date-times remain timezone-less unless the user chooses a timezone. Changing between timezone offsets preserves the instant; adding or removing a timezone preserves the displayed wall-clock time. Disabling time warns before saving the calendar date alone.
 
 Clear is disabled for required fields. Optional dates default to `null`; a host can remove the property instead:
 
@@ -279,7 +283,7 @@ A view with `display: "html"` contains its HTML and CSS in the same `$jsonviews.
 
 - `jv-value` element: display a scalar value without editing.
 - `jv-field` element: display a scalar value and open the existing schema/registry field editor when clicked. Shared editors appear in the product layer, outside the authored CSS.
-- `jv-bind` on input or textarea: edit the source value. Supported inputs are text, number, range, and checkbox. Range commits at pointer/keyboard completion; text and number commit on blur or Enter; textarea uses blur or Ctrl/Cmd+Enter. Escape cancels. A failed native edit can be retried by completing the interaction again.
+- `jv-bind` on input or textarea: edit the source value. Supported inputs are text, number, range, and checkbox. Range commits at pointer/keyboard completion; text, number, and textarea commit on blur or Enter, and Shift+Enter inserts a line break in a textarea (on mobile, Return inserts it and Ctrl/Cmd+Enter commits). Escape cancels. A failed native edit can be retried by completing the interaction again.
 - `jv-value` attribute on progress/meter: bind the numeric value property.
 - `jv-attr-<attribute>`: read a scalar into an allowed attribute: title, aria-label, aria-valuenow, aria-valuetext, x/y/cx/cy/x1/x2/y1/y2/width/height/r/rx/ry/fill/stroke/opacity. URLs are not permitted in attributes.
 - `jv-repeat source="$.tasks" as="task" key="id"`: repeat over an array. Aliases use ordinary path suffixes (`task.title`, `task['odd.key']`); nested repeats can reference outer aliases. Keys must be unique strings or finite numbers. Unkeyed arrays can display/edit against an unchanged acknowledged document, but have no stable row identity across reorder.
