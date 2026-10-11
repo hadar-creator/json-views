@@ -1,0 +1,148 @@
+{
+  "$jsonviews": {
+    "version": 1,
+    "schema": {
+      "$.properties['Due Date'].date.start": {
+        "type": "date"
+      },
+      "$.properties.Name.title[*].text.content": {
+        "type": "text"
+      },
+      "$.properties.Description.rich_text[*].text.content": {
+        "type": "text",
+        "multiline": true
+      },
+      "$.properties.Assign.people[*].name": {
+        "type": "text"
+      }
+    },
+    "views": [
+      {
+        "id": "notion-page",
+        "name": "Notion page",
+        "path": "$",
+        "display": "html",
+        "html": "<main class=\"app notion\"><header><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" aria-hidden=\"true\"><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"2\"></rect><path d=\"M4 9h16M9 9v11\"></path></svg><span>Product projects</span></header><article><div class=\"page-icon\"><jv-value bind=\"$.icon.emoji\"></jv-value></div><h1><jv-repeat source=\"$.properties.Name.title\" as=\"part\"><jv-field bind=\"part.text.content\" sync-bind=\"part.plain_text\"></jv-field></jv-repeat></h1><div class=\"props\"><span class=\"label\">◉ <span>Status</span></span><span><span class=\"pill blue\"><jv-value bind=\"$.properties.Status.status.name\"></jv-value></span></span><span class=\"label\">♙ <span>Assignee</span></span><span class=\"people\"><jv-repeat source=\"$.properties.Assign.people\" as=\"person\" key=\"id\"><span class=\"person\"><span class=\"avatar\">M</span><jv-field bind=\"person.name\" aria-label=\"Assignee name\"></jv-field></span></jv-repeat></span><span class=\"label\">▦ <span>Due date</span></span><span><jv-field bind=\"$.properties[&#x27;Due Date&#x27;].date.start\" format=\"date\"></jv-field></span><span class=\"label\">≡ <span>Priority</span></span><span><span class=\"pill red\"><jv-value bind=\"$.properties.Priority.select.name\"></jv-value></span></span></div><div class=\"body\"><jv-repeat source=\"$.properties.Description.rich_text\" as=\"part\"><jv-field bind=\"part.text.content\" sync-bind=\"part.plain_text\"></jv-field></jv-repeat></div></article><p class=\"sample-note\">Sample data · Click values to edit locally.</p></main>",
+        "css": "*{box-sizing:border-box}body{background:#fff}.app{margin:0 auto;background:#fff;color:#202124;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif;border:1px solid #e4e5e7;border-radius:9px;overflow:hidden}.jv-field{font:inherit;color:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;white-space:inherit;max-width:100%;overflow-wrap:anywhere;cursor:text;border:0;border-radius:3px;padding:0;background:transparent}.jv-field:hover{background:#f1f3f5;outline:none!important}.jv-field:focus-visible{outline:2px solid #5f65d8;outline-offset:3px}.sample-note{font-size:11px;color:#80848c;padding:13px 24px;margin:0;border-top:1px solid #f0f0f1}h1,h2,p{margin:0}.muted{color:#70757a}svg{vertical-align:middle;flex-shrink:0}@media(max-width:550px){.app{border-radius:6px}.sample-note{padding:12px 18px}}.notion{max-width:960px;color:#37352f;border-color:#e9e9e7}.notion header{display:flex;align-items:center;gap:8px;padding:14px 20px;font-size:13px;color:#787774}.notion article{max-width:760px;margin:26px auto 44px;padding:0 44px}.page-icon{font-size:48px;line-height:1.3;margin-bottom:13px}.notion h1{font-size:38px;font-weight:750;letter-spacing:-1.1px;line-height:1.25;margin-bottom:23px}.props{display:grid;grid-template-columns:138px minmax(0,1fr);align-items:center;gap:12px 10px;font-size:14px}.label{display:flex;gap:10px;color:#787774}.label>span{font-size:13px}.pill{display:inline-block;padding:1px 7px;border-radius:4px;font-size:12px}.blue{background:#d3e5ef;color:#31546b}.blue:before{content:\"●\";font-size:8px;margin-right:5px}.red{background:#ffe2dd;color:#9e5046}.people,.person{display:flex;align-items:center;gap:7px}.people{flex-wrap:wrap}.avatar{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:50%;font-size:10px;background:#e7dfd5;color:#7a6750}.body{border-top:1px solid #e9e9e7;margin-top:27px;padding-top:27px;white-space:pre-wrap;line-height:1.75;font-size:15px}.notion .sample-note{color:#9b9a97;border-color:#f0f0ee}@media(max-width:550px){.notion article{padding:0 22px;margin-top:20px}.notion h1{font-size:30px}.props{grid-template-columns:105px minmax(0,1fr);font-size:13px}.page-icon{font-size:40px}}"
+      }
+    ]
+  },
+  "object": "page",
+  "id": "a8f31b8e-4d3f-4f32-a747-2c81a2980e91",
+  "created_time": "2026-09-10T08:31:00.000Z",
+  "last_edited_time": "2026-09-17T07:20:00.000Z",
+  "created_by": {
+    "object": "user",
+    "id": "b2e19928-b427-4aad-9a9d-fde65479b1d9"
+  },
+  "last_edited_by": {
+    "object": "user",
+    "id": "45ee8d13-687b-47ce-a5ca-6e2e45548c4b"
+  },
+  "cover": null,
+  "icon": {
+    "type": "emoji",
+    "emoji": "🚀"
+  },
+  "parent": {
+    "type": "data_source_id",
+    "data_source_id": "1a44be12-0953-4631-b498-9e5817518db8",
+    "database_id": "4082a765-b934-420f-9d9b-06498ed239b1"
+  },
+  "in_trash": false,
+  "is_locked": false,
+  "properties": {
+    "Name": {
+      "id": "title",
+      "type": "title",
+      "title": [
+        {
+          "type": "text",
+          "text": {
+            "content": "Public launch",
+            "link": null
+          },
+          "annotations": {
+            "bold": false,
+            "italic": false,
+            "strikethrough": false,
+            "underline": false,
+            "code": false,
+            "color": "default"
+          },
+          "plain_text": "Public launch",
+          "href": null
+        }
+      ]
+    },
+    "Status": {
+      "id": "status",
+      "type": "status",
+      "status": {
+        "id": "1a134e15-ff41-4d42-bd31-1f6ca42c9b5e",
+        "name": "Review",
+        "color": "blue"
+      }
+    },
+    "Assign": {
+      "id": "assign",
+      "type": "people",
+      "people": [
+        {
+          "object": "user",
+          "id": "b2e19928-b427-4aad-9a9d-fde65479b1d9",
+          "name": "Maya Chen",
+          "avatar_url": null,
+          "type": "person",
+          "person": {
+            "email": "maya@northstar.example"
+          }
+        }
+      ]
+    },
+    "Due Date": {
+      "id": "due",
+      "type": "date",
+      "date": {
+        "start": "2026-09-22",
+        "end": null,
+        "time_zone": null
+      }
+    },
+    "Priority": {
+      "id": "priority",
+      "type": "select",
+      "select": {
+        "id": "b8b59c57-386f-4858-948f-63fd924e1c7a",
+        "name": "High",
+        "color": "red"
+      }
+    },
+    "Description": {
+      "id": "description",
+      "type": "rich_text",
+      "rich_text": [
+        {
+          "type": "text",
+          "text": {
+            "content": "Launch checklist\n\n• Finalize release notes\n• Confirm support coverage\n• Publish migration guide\n• Schedule launch announcement\n\nDecision: Launch remains scheduled for September 22.",
+            "link": null
+          },
+          "annotations": {
+            "bold": false,
+            "italic": false,
+            "strikethrough": false,
+            "underline": false,
+            "code": false,
+            "color": "default"
+          },
+          "plain_text": "Launch checklist\n\n• Finalize release notes\n• Confirm support coverage\n• Publish migration guide\n• Schedule launch announcement\n\nDecision: Launch remains scheduled for September 22.",
+          "href": null
+        }
+      ]
+    }
+  },
+  "url": "https://www.notion.so/a8f31b8e4d3f4f32a7472c81a2980e91",
+  "public_url": null,
+  "archived": false
+}

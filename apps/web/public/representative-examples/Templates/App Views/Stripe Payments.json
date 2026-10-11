@@ -1,0 +1,164 @@
+{
+  "$jsonviews": {
+    "version": 1,
+    "schema": {
+      "$.data[*].description": {
+        "type": "text"
+      },
+      "$.data[*].metadata.receipt_note": {
+        "type": "text"
+      },
+      "$.data[*].amount": {
+        "type": "number",
+        "minimum": 0
+      },
+      "$.data[*].status": {
+        "type": "select",
+        "options": [
+          "succeeded",
+          "processing",
+          "canceled",
+          "requires_payment_method",
+          "requires_confirmation",
+          "requires_action",
+          "requires_capture"
+        ]
+      },
+      "$.data[*].payment_method.billing_details.name": {
+        "type": "text"
+      },
+      "$.data[*].payment_method.billing_details.email": {
+        "type": "email"
+      }
+    },
+    "views": [
+      {
+        "css": "*{box-sizing:border-box}body{background:#fff}.app{margin:0 auto;background:#fff;color:#202124;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif;border:1px solid #e4e5e7;border-radius:9px;overflow:hidden}.jv-field{font:inherit;color:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;white-space:inherit;max-width:100%;overflow-wrap:anywhere;cursor:text;border:0;border-radius:3px;padding:0;background:transparent}.jv-field:hover{background:#f1f3f5;outline:none!important}.jv-field:focus-visible{outline:2px solid #5f65d8;outline-offset:3px}.sample-note{font-size:11px;color:#80848c;padding:13px 24px;margin:0;border-top:1px solid #f0f0f1}h1,h2,p{margin:0}.muted{color:#70757a}svg{vertical-align:middle;flex-shrink:0}@media(max-width:550px){.app{border-radius:6px}.sample-note{padding:12px 18px}}.stripe{max-width:1180px;color:#30313d}.stripe-heading{display:flex;align-items:center;gap:14px;padding:25px 28px 22px}.stripe-heading h1{font-size:26px;font-weight:650;letter-spacing:-.65px}.test-mode{font-size:11px;font-weight:600;color:#795615;background:#fff2cd;border-radius:4px;padding:2px 7px}.table-scroll{overflow-x:auto;padding:0 28px 24px}.table{border-collapse:collapse;width:100%;font-size:13px;text-align:left;white-space:nowrap}.th{color:#596171;font-weight:550;font-size:12px;border-top:1px solid #e8ebef;border-bottom:1px solid #e8ebef;padding:11px 12px}.td{border-bottom:1px solid #ebeef1;padding:16px 12px;height:58px}.th:first-child,.td:first-child{padding-left:0}.th:last-child,.td:last-child{padding-right:0}.row:hover .td{background:#fafbfc}.amount{font-weight:600;font-variant-numeric:tabular-nums}.currency{text-transform:uppercase;font-size:11px;color:#687383;font-weight:400;margin-left:3px}.status{display:inline-block;border-radius:4px;background:#d7f7e6;color:#096c45;padding:2px 7px;font-size:11px;font-weight:600}.status[title=\"succeeded\"]:after{content:\"✓\";margin-left:6px}.status[title=\"canceled\"]{background:#e9ebef;color:#596171}.status[title^=\"requires\"],.status[title=\"processing\"]{background:#fff1cc;color:#876312}.description{min-width:155px}.customer,.date{color:#596171}.sort{margin-left:3px;color:#9aa3b1}.stripe .sample-note{padding-left:28px}@media(max-width:650px){.stripe-heading{padding:20px}.table-scroll{padding:0 20px 20px}.table{min-width:830px}.stripe .sample-note{padding-left:20px}} .note{display:block;margin-top:4px;font-size:11px;color:#87909e;max-width:240px}.note .jv-field{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:240px}.customer-name{display:block;color:#596171}.customer-email{display:block;margin-top:4px;font-size:11px;color:#87909e}.stripe .table-scroll .table{min-width:850px} .row{display:grid;grid-template-columns:110px 118px minmax(200px,1.2fr) minmax(180px,1fr) 160px;align-items:stretch}.td,.th{display:flex;flex-direction:column;justify-content:center;min-width:0}.td.amount{display:block;padding-top:20px}.td.amount>span{display:inline}.td .status{align-self:flex-start}.stripe .table{min-width:900px}.hubspot .table{min-width:850px}.td.name{display:block;padding-top:20px}.td.description{display:block;padding-top:16px} .td{height:auto;min-height:68px} .th{display:block}",
+        "display": "html",
+        "html": "<main class=\"app stripe\"><header class=\"stripe-heading\"><h1>Payments</h1><span class=\"test-mode\"><jv-value bind=\"$.data[0].livemode\" labels=\"{&quot;false&quot;:&quot;Test mode&quot;,&quot;true&quot;:&quot;Live mode&quot;}\"></jv-value></span></header><section class=\"table-scroll\"><div class=\"table\" role=\"table\"><div class=\"thead\" role=\"rowgroup\"><div class=\"row\" role=\"row\"><div class=\"th\" role=\"columnheader\">Amount</div><div class=\"th\" role=\"columnheader\">Status</div><div class=\"th\" role=\"columnheader\">Description</div><div class=\"th\" role=\"columnheader\">Customer</div><div class=\"th\" role=\"columnheader\">Created <span class=\"sort\">↓</span></div></div></div><div class=\"tbody\" role=\"rowgroup\"><jv-repeat source=\"$.data\" as=\"payment\" key=\"id\"><div class=\"row\" role=\"row\"><div class=\"td amount\" role=\"cell\" jv-attr-title=\"payment.id\"><jv-field bind=\"payment.amount\" format=\"currency-minor\" currency-bind=\"payment.currency\" sync-bind=\"payment.amount_received\" aria-label=\"Amount\"></jv-field> <span class=\"currency\"><jv-value bind=\"payment.currency\"></jv-value></span></div><div class=\"td\" role=\"cell\"><span class=\"status\" jv-attr-title=\"payment.status\"><jv-field bind=\"payment.status\" labels=\"{&quot;succeeded&quot;: &quot;Succeeded&quot;, &quot;processing&quot;: &quot;Processing&quot;, &quot;canceled&quot;: &quot;Canceled&quot;, &quot;requires_payment_method&quot;: &quot;Incomplete&quot;, &quot;requires_action&quot;: &quot;Incomplete&quot;, &quot;requires_confirmation&quot;: &quot;Incomplete&quot;, &quot;requires_capture&quot;: &quot;Uncaptured&quot;}\"></jv-field></span></div><div class=\"td description\" role=\"cell\"><jv-field bind=\"payment.description\" aria-label=\"Description\"></jv-field><span class=\"note\"><jv-field bind=\"payment.metadata.receipt_note\" aria-label=\"Note\"></jv-field></span></div><div class=\"td customer\" role=\"cell\"><span class=\"customer-name\"><jv-field bind=\"payment.payment_method.billing_details.name\" aria-label=\"Billing name\"></jv-field></span><span class=\"customer-email\"><jv-field bind=\"payment.payment_method.billing_details.email\" aria-label=\"Billing email\"></jv-field></span></div><div class=\"td date\" role=\"cell\"><jv-value bind=\"payment.created\" format=\"datetime\" date-unit=\"seconds\" time-zone=\"Asia/Jerusalem\"></jv-value></div></div></jv-repeat></div></div></section><p class=\"sample-note\">Sample data · Click values to edit locally.</p></main>",
+        "id": "stripe-payments",
+        "name": "Stripe payments",
+        "path": "$"
+      }
+    ]
+  },
+  "object": "list",
+  "data": [
+    {
+      "id": "pi_3P01",
+      "object": "payment_intent",
+      "amount": 24900,
+      "amount_received": 24900,
+      "amount_capturable": 0,
+      "currency": "usd",
+      "created": 1789637100,
+      "description": "Pro annual plan",
+      "status": "succeeded",
+      "livemode": false,
+      "customer": "cus_demo_01",
+      "payment_method": {
+        "id": "pm_demo_01",
+        "object": "payment_method",
+        "type": "card",
+        "billing_details": {
+          "email": "billing@lumen.example",
+          "name": "Lumen Labs",
+          "address": {
+            "city": null,
+            "country": null,
+            "line1": null,
+            "line2": null,
+            "postal_code": null,
+            "state": null
+          },
+          "phone": null
+        },
+        "created": 1789637040,
+        "customer": "cus_demo_01",
+        "livemode": false,
+        "metadata": {}
+      },
+      "metadata": {
+        "receipt_note": "Payment captured successfully. Annual subscription renews on September 17, 2027. Invoice requested by customer."
+      }
+    },
+    {
+      "id": "pi_3P02",
+      "object": "payment_intent",
+      "amount": 9900,
+      "amount_received": 9900,
+      "amount_capturable": 0,
+      "currency": "usd",
+      "created": 1789632420,
+      "description": "Team monthly plan",
+      "status": "succeeded",
+      "livemode": false,
+      "customer": "cus_demo_02",
+      "payment_method": {
+        "id": "pm_demo_02",
+        "object": "payment_method",
+        "type": "card",
+        "billing_details": {
+          "email": "finance@atlas.example",
+          "name": "Atlas Works",
+          "address": {
+            "city": null,
+            "country": null,
+            "line1": null,
+            "line2": null,
+            "postal_code": null,
+            "state": null
+          },
+          "phone": null
+        },
+        "created": 1789632360,
+        "customer": "cus_demo_02",
+        "livemode": false,
+        "metadata": {}
+      },
+      "metadata": {
+        "receipt_note": "Monthly team subscription. Automatic receipt delivered to the billing contact."
+      }
+    },
+    {
+      "id": "pi_3P03",
+      "object": "payment_intent",
+      "amount": 49900,
+      "amount_received": 49900,
+      "amount_capturable": 0,
+      "currency": "usd",
+      "created": 1789546200,
+      "description": "Business annual add-on",
+      "status": "succeeded",
+      "livemode": false,
+      "customer": "cus_demo_03",
+      "payment_method": {
+        "id": "pm_demo_03",
+        "object": "payment_method",
+        "type": "card",
+        "billing_details": {
+          "email": "ap@orbit.example",
+          "name": "Orbit Systems",
+          "address": {
+            "city": null,
+            "country": null,
+            "line1": null,
+            "line2": null,
+            "postal_code": null,
+            "state": null
+          },
+          "phone": null
+        },
+        "created": 1789546140,
+        "customer": "cus_demo_03",
+        "livemode": false,
+        "metadata": {}
+      },
+      "metadata": {
+        "receipt_note": "Business add-on for advanced governance. Customer requested the purchase-order number on the invoice."
+      }
+    }
+  ],
+  "has_more": false,
+  "url": "/v1/payment_intents"
+}

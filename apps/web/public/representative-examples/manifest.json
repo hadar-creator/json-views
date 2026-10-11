@@ -4,8 +4,8 @@
     "title": "About JSON Views",
     "sourceFile": "About JSON Views.json",
     "description": "A welcome page and a database of seven short articles.",
-    "sourceSha256": "f8d591a600394de1325f8f1db4f118f6b0eb93370617c5d52780faa1389629c2",
-    "bytes": 14373,
+    "sourceSha256": "2a98f4bc2c42c1f76ca6eecd2e973b3be44bf4c15523070a1ecd00b70924f258",
+    "bytes": 14884,
     "category": "Guide",
     "presentationState": {
       "version": 1,
@@ -45,29 +45,6 @@
     "annotationIssues": 0,
     "dataIssues": 0,
     "relativePath": "Templates/Task Management.json"
-  },
-  {
-    "id": "lead-management",
-    "title": "Lead Management",
-    "category": "Template",
-    "description": "A sales workspace with a draggable pipeline, all-leads table, follow-up queue, high-value view, contact fields, ownership, tags, and notes.",
-    "sourcePath": "Bundled example",
-    "sourceFile": "Templates/Lead Management.json",
-    "annotationFile": "Templates/Lead Management.jsonviews.json",
-    "shape": "Object containing a lead array",
-    "records": 6,
-    "features": [
-      "Kanban pipeline",
-      "Follow-up queue",
-      "High-value filter",
-      "Email and date validation",
-      "Lead notes"
-    ],
-    "sourceSha256": "2826cf0ed975148f9b5a7262df091ae21401433971a9d0bfb0532723f0cd353d",
-    "bytes": 3243,
-    "annotationIssues": 0,
-    "dataIssues": 0,
-    "relativePath": "Templates/Lead Management.json"
   },
   {
     "id": "llm-messages",
@@ -140,50 +117,95 @@
     "relativePath": "Templates/Decision Comparison.json"
   },
   {
-    "id": "review-findings",
-    "title": "Review Findings",
+    "id": "app-gmail",
+    "title": "Gmail Message",
     "category": "Template",
-    "description": "A focused handoff for an agent reviewing a document, design, or codebase, with severity, evidence, recommendations, and resolution state.",
-    "sourcePath": "Bundled example",
-    "sourceFile": "Templates/Review Findings.json",
-    "annotationFile": "Templates/Review Findings.jsonviews.json",
-    "shape": "Object containing a review findings array",
-    "records": 6,
-    "features": [
-      "Triage board",
-      "Severity queue",
-      "Open-findings filter",
-      "Evidence body",
-      "Resolution tracking"
+    "description": "A Gmail message with editable headers and a decoded, editable plain-text MIME body.",
+    "sourceFile": "Templates/App Views/Gmail Message.json",
+    "relativePath": "Templates/App Views/Gmail Message.json",
+    "sourceSha256": "f4733dda50c7a37c1b09e20727902d5b5bd822997831e5abc01bf5c08bdec436",
+    "bytes": 5055,
+    "apiReference": [
+      "https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages",
+      "https://developers.google.com/workspace/gmail/api/reference/rest/v1/users.messages.attachments"
     ],
-    "sourceSha256": "9cc793a0ec86ddc5b1fe1a7964259ba14ddb128e9eca72d01b46a3455a1b76f4",
-    "bytes": 3152,
-    "annotationIssues": 0,
-    "dataIssues": 0,
-    "relativePath": "Templates/Review Findings.json"
+    "apiNotes": "GET /gmail/v1/users/me/messages/{id}?format=full. Headers are a name/value array; this fixture binds its known header order. Locate headers by name before adapting another message. The view decodes this known text/plain body as UTF-8; edits re-encode body.data as base64url and update body.size atomically. Multipart messages require traversing payload.parts and may require attachments.get."
   },
   {
-    "id": "content-batch",
-    "title": "Content Batch",
+    "id": "app-hubspot",
+    "title": "HubSpot Contacts",
     "category": "Template",
-    "description": "A temporary campaign workspace for turning one brief into several agent-generated deliverables and moving each through review and publication.",
-    "sourcePath": "Bundled example",
-    "sourceFile": "Templates/Content Batch.json",
-    "annotationFile": "Templates/Content Batch.jsonviews.json",
-    "shape": "Object containing a content deliverables array",
-    "records": 6,
-    "features": [
-      "Content pipeline",
-      "Review queue",
-      "Channel and audience fields",
-      "Publish dates",
-      "Markdown draft editor"
+    "description": "A CRM v3 contact list with editable names, companies, email addresses, and lead statuses.",
+    "sourceFile": "Templates/App Views/HubSpot Contacts.json",
+    "relativePath": "Templates/App Views/HubSpot Contacts.json",
+    "sourceSha256": "a3a5222813485859b19c9854a3fd540bc3d3de5f6cc416aa595dd18ca2bdea55",
+    "bytes": 6171,
+    "apiReference": [
+      "https://developers.hubspot.com/docs/api-reference/legacy/crm/objects/contacts/guide",
+      "https://developers.hubspot.com/docs/api-reference/legacy/crm/owners/guide"
     ],
-    "sourceSha256": "74966c615204c3a62512844205f2532f977f641e5a4f4e1dd6ff793f382c087a",
-    "bytes": 3361,
-    "annotationIssues": 0,
-    "dataIssues": 0,
-    "relativePath": "Templates/Content Batch.json"
+    "apiNotes": "GET /crm/v3/objects/contacts?limit=100&properties=firstname,lastname,email,company,hs_lead_status,hubspot_owner_id,notes_last_updated. Explicitly request these properties. This is a final list page, so paging is omitted; list responses do not include the search API total. Owner values are IDs; resolve names with the Owners API. Notes are separate CRM objects, not a default notes property."
+  },
+  {
+    "id": "app-slack",
+    "title": "Slack Channel",
+    "category": "Template",
+    "description": "Channel history with native user IDs, message timestamps, reactions, and reply counts.",
+    "sourceFile": "Templates/App Views/Slack Channel.json",
+    "relativePath": "Templates/App Views/Slack Channel.json",
+    "sourceSha256": "2c79136dc6052ccbd0ab7561d5eddc22274d6dbd22b5a4bb9c5ba3146ee2693a",
+    "bytes": 6090,
+    "apiReference": [
+      "https://docs.slack.dev/reference/methods/conversations.history/",
+      "https://docs.slack.dev/messaging/retrieving-messages/"
+    ],
+    "apiNotes": "GET https://slack.com/api/conversations.history?channel=C08LAUNCH. Messages are newest first; user contains an ID and ts is a Unix-seconds string. Reactions and reply_count are optional and populated in this fixture. Channel names, user names, thread replies, and permalinks require conversations.info, users.info, conversations.replies, and chat.getPermalink respectively; they are not invented history fields. Slack mrkdwn is shown as plain text. The view reverses the newest-first API array without changing source order. The channel title, user-name/initial labels, and emoji lookup are explicit fictional presentation context; a real integration must populate them from the companion APIs. Times use Asia/Jerusalem. The date divider covers this single-day fixture."
+  },
+  {
+    "id": "app-notion",
+    "title": "Notion Project",
+    "category": "Template",
+    "description": "A Notion page with editable title, description, assignee name, and due date.",
+    "sourceFile": "Templates/App Views/Notion Project.json",
+    "relativePath": "Templates/App Views/Notion Project.json",
+    "sourceSha256": "cb501c6f479f4e3145643b470e8d3a5e85fdb01b1a0a9c52076fb47a5baddb5e",
+    "bytes": 7585,
+    "apiReference": [
+      "https://developers.notion.com/reference/page",
+      "https://developers.notion.com/reference/parent-object",
+      "https://developers.notion.com/reference/rich-text"
+    ],
+    "apiNotes": "GET /v1/pages/{page_id}, using the data_source_id parent model introduced in Notion-Version 2025-09-03. Name, Status, Assign, Due Date, Priority, and Description are example data-source properties, not universal page fields. Description is a rich_text property, not page body blocks (those come from blocks.children.list). Text edits update text.content and plain_text together. The assignee name and due date edit directly; status and priority stay read-only to preserve their name/id pairs."
+  },
+  {
+    "id": "app-stripe",
+    "title": "Stripe Payments",
+    "category": "Template",
+    "description": "A familiar payments table with editable amounts, statuses, descriptions, notes, and billing contacts.",
+    "sourceFile": "Templates/App Views/Stripe Payments.json",
+    "relativePath": "Templates/App Views/Stripe Payments.json",
+    "sourceSha256": "7876554baf597c3182c450119f4ccfb122fa624516df22686a7a36ec6eeb4842",
+    "bytes": 10022,
+    "apiReference": [
+      "https://docs.stripe.com/api/payment_intents/list",
+      "https://docs.stripe.com/api/payment_intents/object",
+      "https://docs.stripe.com/api/payment_methods/object"
+    ],
+    "apiNotes": "GET /v1/payment_intents?limit=3&expand[]=data.payment_method. This is a shortened response fixture: unused fields, card details, and client_secret are omitted. billing_details belongs to the expanded PaymentMethod, not PaymentIntent. amount remains an integer in minor currency units; the view formats it as currency and created as a date/time in Asia/Jerusalem. Amount edits use major units and update amount_received alongside amount for this fully received fixture; adapt that pairing for other payment states. receipt_note is an example user-defined metadata key. There are no fabricated display_amount, display_date, or summary fields."
+  },
+  {
+    "id": "app-linkedin",
+    "title": "LinkedIn Messages (Mock)",
+    "category": "Template",
+    "description": "An explicitly illustrative messaging mock; not a LinkedIn API response.",
+    "sourceFile": "Templates/App Views/LinkedIn Messages (Mock).json",
+    "relativePath": "Templates/App Views/LinkedIn Messages (Mock).json",
+    "sourceSha256": "a592192e3e6c8dd48041031cd62fe9aee81226c328f72f920ffa78b2cdf9f0e2",
+    "bytes": 5990,
+    "apiReference": [
+      "https://learn.microsoft.com/en-us/linkedin/shared/integrations/communications/messages"
+    ],
+    "apiNotes": "The provided conversation is a normalized UI mock, not a documented LinkedIn response. LinkedIn Messages API access is restricted to approved partners; its public documentation does not establish this inbox shape. No API compatibility is claimed. The draft field is local-only."
   },
   {
     "id": "csv",

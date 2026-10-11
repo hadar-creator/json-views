@@ -1,0 +1,78 @@
+{
+  "$jsonviews": {
+    "version": 1,
+    "schema": {
+      "$.messages[*].text": {
+        "type": "text"
+      }
+    },
+    "views": [
+      {
+        "id": "slack-history",
+        "name": "Slack history",
+        "path": "$",
+        "display": "html",
+        "html": "<main class=\"app slack\"><header class=\"channel-header\"><h1><span class=\"hash\">#</span> product-launch</h1></header><div class=\"day\"><span><jv-value bind=\"$.messages[0].ts\" format=\"date\" date-unit=\"seconds\" time-zone=\"Asia/Jerusalem\"></jv-value></span></div><section class=\"messages\"><jv-repeat source=\"$.messages\" as=\"message\" key=\"ts\" order=\"reverse\"><article class=\"message\"><div class=\"avatar\" jv-attr-title=\"message.user\"><jv-value bind=\"message.user\" labels=\"{&quot;U01MAYA&quot;: &quot;MC&quot;, &quot;U02DAN&quot;: &quot;DO&quot;, &quot;U03ARIA&quot;: &quot;AK&quot;}\"></jv-value></div><div class=\"message-content\"><div class=\"byline\"><strong jv-attr-title=\"message.user\"><jv-value bind=\"message.user\" labels=\"{&quot;U01MAYA&quot;: &quot;Maya Chen&quot;, &quot;U02DAN&quot;: &quot;Daniel Ortiz&quot;, &quot;U03ARIA&quot;: &quot;Aria Kim&quot;}\"></jv-value></strong><span class=\"time\" jv-attr-title=\"message.ts\"><jv-value bind=\"message.ts\" format=\"time\" date-unit=\"seconds\" time-zone=\"Asia/Jerusalem\"></jv-value></span></div><div class=\"message-text\"><jv-field bind=\"message.text\"></jv-field></div><div class=\"reactions\"><jv-repeat source=\"message.reactions\" as=\"reaction\" key=\"name\"><span class=\"reaction\" jv-attr-title=\"reaction.name\"><span><jv-value bind=\"reaction.name\" labels=\"{&quot;thumbsup&quot;: &quot;👍&quot;}\"></jv-value></span><jv-value bind=\"reaction.count\"></jv-value></span></jv-repeat></div><div class=\"replies\" jv-attr-title=\"message.reply_count\"><jv-value bind=\"message.reply_count\" labels=\"{&quot;0&quot;: &quot;&quot;, &quot;1&quot;: &quot;1 reply&quot;, &quot;2&quot;: &quot;2 replies&quot;}\"></jv-value></div></div></article></jv-repeat></section><p class=\"sample-note\">Sample data · Click values to edit locally.</p></main>",
+        "css": "*{box-sizing:border-box}body{background:#fff}.app{margin:0 auto;background:#fff;color:#202124;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif;border:1px solid #e4e5e7;border-radius:9px;overflow:hidden}.jv-field{font:inherit;color:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;white-space:inherit;max-width:100%;overflow-wrap:anywhere;cursor:text;border:0;border-radius:3px;padding:0;background:transparent}.jv-field:hover{background:#f1f3f5;outline:none!important}.jv-field:focus-visible{outline:2px solid #5f65d8;outline-offset:3px}.sample-note{font-size:11px;color:#80848c;padding:13px 24px;margin:0;border-top:1px solid #f0f0f1}h1,h2,p{margin:0}.muted{color:#70757a}svg{vertical-align:middle;flex-shrink:0}@media(max-width:550px){.app{border-radius:6px}.sample-note{padding:12px 18px}}.slack{max-width:960px;color:#1d1c1d;font-size:15px}.channel-header{padding:17px 24px;border-bottom:1px solid #dedcde}.channel-header h1{font-size:19px;font-weight:750;letter-spacing:-.25px}.hash{color:#616061;font-weight:500;margin-right:3px}.day{display:flex;align-items:center;gap:0;margin:22px 0 12px;font-size:12px;font-weight:650}.day:before,.day:after{content:\"\";height:1px;background:#e6e6e6;flex:1}.day>span{border:1px solid #dedede;border-radius:20px;padding:4px 16px;background:#fff}.messages{padding:4px 0 22px}.message{display:grid;grid-template-columns:36px minmax(0,1fr);gap:10px;padding:12px 24px}.message:hover{background:#f8f8f8}.avatar{height:36px;width:36px;border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:700;background:#e8daf1;color:#694b78}.avatar[title=\"U02DAN\"]{background:#dae8f0;color:#3e6277}.avatar[title=\"U03ARIA\"]{background:#f2ded4;color:#96654e}.message-content{min-width:0}.byline{display:flex;align-items:baseline;gap:8px}.byline strong{font-size:15px;font-weight:750}.time{font-size:12px;color:#616061}.message-text{line-height:1.48;white-space:pre-wrap;overflow-wrap:anywhere;margin:2px 0 7px;max-width:810px}.reactions{display:flex;gap:6px}.reaction{display:inline-flex;align-items:center;gap:5px;border:1px solid #c3deee;background:#e8f4fa;border-radius:14px;padding:1px 9px;font-size:12px;color:#1264a3;line-height:24px}.reaction>span:first-child{font-size:16px}.replies{font-size:12px;font-weight:650;color:#1264a3;margin-top:5px}.replies[title=\"0\"]{display:none}.slack .sample-note{font-size:11px}@media(max-width:550px){.channel-header{padding:15px 18px}.message{padding:12px 16px}.byline{flex-wrap:wrap;gap:3px 7px}.message-text{font-size:14px}.byline strong{font-size:14px}}"
+      }
+    ]
+  },
+  "ok": true,
+  "messages": [
+    {
+      "type": "message",
+      "user": "U03ARIA",
+      "text": "I uploaded the final social assets and added the dark-mode screenshot to the press kit.",
+      "ts": "1789640700.000300",
+      "reply_count": 0,
+      "reactions": [
+        {
+          "name": "thumbsup",
+          "count": 2,
+          "users": [
+            "U01MAYA",
+            "U02DAN"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "user": "U02DAN",
+      "text": "Customer success reviewed the migration email. No blockers from our side — timing looks good.",
+      "ts": "1789639260.000200",
+      "reply_count": 1,
+      "reactions": [
+        {
+          "name": "thumbsup",
+          "count": 1,
+          "users": [
+            "U01MAYA"
+          ]
+        }
+      ]
+    },
+    {
+      "type": "message",
+      "user": "U01MAYA",
+      "text": "The release candidate is live in staging. Please add any final blockers to the launch doc before 15:00.",
+      "ts": "1789638120.000100",
+      "reply_count": 2,
+      "reactions": [
+        {
+          "name": "thumbsup",
+          "count": 2,
+          "users": [
+            "U02DAN",
+            "U03ARIA"
+          ]
+        }
+      ]
+    }
+  ],
+  "has_more": false,
+  "pin_count": 0,
+  "response_metadata": {
+    "next_cursor": ""
+  }
+}

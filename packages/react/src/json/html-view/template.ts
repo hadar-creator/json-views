@@ -3,6 +3,7 @@ const tags = new Set('main article section header footer nav aside div span h1 h
 const dangerous = new Set('script iframe object embed base meta link form foreignobject animate animatemotion animatetransform set style'.split(' '))
 export const boundAttributes = new Set('title aria-label aria-valuenow aria-valuetext x y cx cy x1 x2 y1 y2 width height r rx ry fill stroke opacity'.split(' '))
 const attributes = new Set('id class title role type min max step placeholder rows cols maxlength disabled readonly tabindex for value checked max low high optimum width height viewBox preserveAspectRatio d x y cx cy x1 x2 y1 y2 r rx ry points fill stroke stroke-width opacity text-anchor font-size font-family alt bind source as key'.toLowerCase().split(' '))
+const valueAttributes = new Set('format labels currency currency-bind date-unit time-zone sync-bind byte-length-bind'.split(' '))
 export function parseHtmlTemplate(doc: Document, html: string): { nodes: HtmlTemplateNode[]; warnings: string[] } {
   const template = doc.createElement('template')
   // Template contents are inert; parsed only in the CSP-restricted frame document.
@@ -21,6 +22,7 @@ export function parseHtmlTemplate(doc: Document, html: string): { nodes: HtmlTem
     const attrs: Record<string, string> = {}
     for (const attr of Array.from(element.attributes)) {
       const name = attr.name.toLowerCase(), value = attr.value
+      if ((tag === 'jv-value' || tag === 'jv-field') && valueAttributes.has(name) || tag === 'jv-repeat' && name === 'order') { attrs[name] = value; continue }
       if (name === 'src' && tag === 'img' && /^data:image\/(png|jpeg|gif|webp);base64,[A-Za-z0-9+/=]+$/.test(value) && value.length <= 256 * 1024) { attrs.src = value; continue }
       if (name.startsWith('jv-attr-') && boundAttributes.has(name.slice(8)) || name === 'jv-bind' || name === 'jv-value' || attributes.has(name) || /^aria-[a-z-]+$/.test(name)) {
         if ((name === 'fill' || name === 'stroke') && /url\s*\(/i.test(value)) { warnings.push(`Removed URL attribute: ${name}`); continue }

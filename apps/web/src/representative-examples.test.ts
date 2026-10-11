@@ -17,12 +17,9 @@ const examplesDirectory = join(process.cwd(), 'public', 'representative-examples
 const manifest = JSON.parse(readFileSync(join(examplesDirectory, 'manifest.json'), 'utf8')) as ManifestEntry[]
 const exampleIds = [
   'task-management',
-  'lead-management',
   'llm-messages',
   'research-sprint',
   'decision-comparison',
-  'review-findings',
-  'content-batch',
 ] as const
 
 describe('bundled examples', () => {

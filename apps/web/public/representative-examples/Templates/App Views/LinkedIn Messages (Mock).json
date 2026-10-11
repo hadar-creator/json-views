@@ -1,0 +1,69 @@
+{
+  "$jsonviews": {
+    "version": 1,
+    "schema": {
+      "$.draft": {
+        "multiline": true,
+        "type": "text"
+      },
+      "$.messages[*].body": {
+        "multiline": true,
+        "type": "text"
+      },
+      "$.messages[*].sender": {
+        "type": "text"
+      },
+      "$.messages[*].sent_at": {
+        "type": "text"
+      },
+      "$.participant.headline": {
+        "type": "text"
+      },
+      "$.participant.name": {
+        "type": "text"
+      }
+    },
+    "views": [
+      {
+        "css": "*{box-sizing:border-box}body{background:#fff}.app{margin:0 auto;background:#fff;color:#202124;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif;border:1px solid #e4e5e7;border-radius:9px;overflow:hidden}.jv-field{font:inherit;color:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;white-space:inherit;max-width:100%;overflow-wrap:anywhere;cursor:text;border:0;border-radius:3px;padding:0;background:transparent}.jv-field:hover{background:#f1f3f5;outline:none!important}.jv-field:focus-visible{outline:2px solid #5f65d8;outline-offset:3px}.sample-note{font-size:11px;color:#80848c;padding:13px 24px;margin:0;border-top:1px solid #f0f0f1}h1,h2,p{margin:0}.muted{color:#70757a}svg{vertical-align:middle;flex-shrink:0}@media(max-width:550px){.app{border-radius:6px}.sample-note{padding:12px 18px}}.linkedin{max-width:850px;color:#191919;border-color:#d9d9d9}.linkedin header{display:flex;align-items:center;gap:12px;padding:20px 24px;border-bottom:1px solid #e9e9e9}.linkedin header>div{min-width:0;flex:1}.linkedin h1{font-size:17px;font-weight:650;line-height:1.4}.linkedin header p{font-size:12px;color:#666;margin-top:3px;line-height:1.5}.mock-label{font-size:10px;color:#888;background:#f3f2ef;border-radius:3px;padding:2px 6px}.avatar{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#dbe7e4;color:#49645d;font-size:12px;font-weight:650;flex-shrink:0}.avatar[title=\"Niv\"]{background:#e3e3ee;color:#61617d}.large{width:44px;height:44px;font-size:14px}.messages{padding:10px 24px 17px}.message{display:grid;grid-template-columns:38px minmax(0,1fr);gap:11px;padding:17px 0}.byline{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}.byline strong{font-size:14px;font-weight:650}.byline>span{font-size:11px;color:#777}.body{font-size:14px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere}.composer{border-top:1px solid #ddd;padding:17px 24px 18px}.composer label{display:block;color:#666;font-size:12px;margin-bottom:8px}.composer textarea{display:block;width:100%;resize:vertical;min-height:84px;background:#f3f2ef;border:1px solid #e4e3e0;border-radius:5px;padding:12px;font-family:inherit;font-size:14px;line-height:1.55;color:#333}.composer textarea:focus{outline:2px solid #0a66c2;outline-offset:2px}.composer small{display:block;font-size:10px;color:#888;margin-top:10px}.linkedin .jv-field:hover{background:#edf3f8}@media(max-width:550px){.linkedin header,.messages,.composer{padding-left:18px;padding-right:18px}.linkedin header{align-items:flex-start}.mock-label{display:none}.byline{flex-wrap:wrap;gap:3px 8px}.body{font-size:13px}.message{grid-template-columns:32px minmax(0,1fr);gap:9px}.message .avatar{width:32px;height:32px;font-size:11px}}",
+        "display": "html",
+        "html": "<main class=\"app linkedin\"><header><span class=\"avatar large\"><jv-value bind=\"$.participant.initials\"></jv-value></span><div><h1><jv-field bind=\"$.participant.name\"></jv-field></h1><p><jv-field bind=\"$.participant.headline\"></jv-field></p></div><span class=\"mock-label\">Mock</span></header><section class=\"messages\"><jv-repeat source=\"$.messages\" as=\"message\" key=\"id\"><article class=\"message\"><span class=\"avatar\" jv-attr-title=\"message.sender\"><jv-value bind=\"message.initials\"></jv-value></span><div><div class=\"byline\"><strong><jv-field bind=\"message.sender\"></jv-field></strong><span><jv-field bind=\"message.sent_at\" aria-label=\"Message time\"></jv-field></span></div><div class=\"body\"><jv-field bind=\"message.body\"></jv-field></div></div></article></jv-repeat></section><section class=\"composer\"><label for=\"draft\">Draft reply</label><textarea id=\"draft\" jv-bind=\"$.draft\" aria-label=\"Draft reply\" rows=\"3\"></textarea><small>Illustrative mock · Draft saved in this file only.</small></section></main>",
+        "id": "linkedin-message",
+        "name": "LinkedIn messages",
+        "path": "$"
+      }
+    ]
+  },
+  "conversation_id": "conversation_demo_01",
+  "draft": "Happy to chat next week. Would Tuesday afternoon work for you?",
+  "messages": [
+    {
+      "body": "Hi Niv, I came across your work on making automation more accessible to product teams. The way you approach inspectable workflows really resonated with me.\n\nWe’re exploring a similar challenge at Northstar. Would you be open to comparing notes?",
+      "id": "msg_01",
+      "initials": "MC",
+      "sender": "Maya Chen",
+      "sent_at": "10:42 AM"
+    },
+    {
+      "body": "Hi Maya, thanks for reaching out! Happy to compare notes. We’ve been focusing on helping teams understand and edit the data behind their workflows.\n\nWhat’s the biggest bottleneck for your team today?",
+      "id": "msg_02",
+      "initials": "N",
+      "sender": "Niv",
+      "sent_at": "11:08 AM"
+    },
+    {
+      "body": "Mostly the handoff between our CRM and internal tools. There’s a lot of useful context in the data, but it’s hard for anyone outside engineering to work with it.\n\nA short conversation next week would be great.",
+      "id": "msg_03",
+      "initials": "MC",
+      "sender": "Maya Chen",
+      "sent_at": "11:16 AM"
+    }
+  ],
+  "participant": {
+    "connection": "1st degree connection",
+    "headline": "VP of Product at Northstar · Building thoughtful software",
+    "initials": "MC",
+    "name": "Maya Chen"
+  },
+  "sample_type": "illustrative conversation; normalized JSON, not a raw LinkedIn API response"
+}

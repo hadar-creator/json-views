@@ -9,13 +9,14 @@ import { SchemaEditor } from './schema-value.js'
 import { useJsonSourceLiterals } from './source-literals.js'
 import { parseHtmlTemplate, type HtmlTemplateNode } from './html-view/template.js'
 import { NativeHtmlControl } from './html-view/native-control.js'
+import { formatHtmlValue, htmlValueForEditing, htmlValueFromEditing } from './html-view/format-value.js'
 import type { JsonViewJsonEditing } from './view-types.js'
 
 const skeleton = `<!doctype html><html><head><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src data:; font-src 'none'; connect-src 'none'; object-src 'none'; frame-src 'none'; base-uri 'none'; form-action 'none'"><style>body{margin:0;font:14px system-ui;background:var(--jv-background);color:var(--jv-foreground)}*{box-sizing:border-box}jv-field,jv-value{display:inline}button.jv-field{font:inherit;color:inherit;background:transparent;border:0;padding:0;text-align:inherit;cursor:pointer}button.jv-field:hover{outline:1px dashed currentColor}button.jv-field:focus-visible{outline:2px solid currentColor}</style></head><body><div id="mount"></div></body></html>`
 export function HtmlView({ compiled, view, editing, fillHeight, onCurrentPathChange }: { compiled: CompiledJsonViewMetadata; view: CompiledJsonViewView; editing?: JsonViewJsonEditing; fillHeight?: boolean; onCurrentPathChange?: (path: ValuePath) => void }) {
   const frame = useRef<HTMLIFrameElement>(null), editorRef = useRef<HTMLDivElement>(null)
   const [doc, setDoc] = useState<Document>(), [error, setError] = useState(''), [height, setHeight] = useState(500)
-  const [selected, setSelected] = useState<{ path: ValuePath; anchor: HTMLElement; base?: string }>()
+  const [selected, setSelected] = useState<{ path: ValuePath; anchor: HTMLElement; base?: string; attrs: Record<string, string>; resolve: (binding: string) => unknown; syncPath?: ValuePath; byteLengthPath?: ValuePath }>()
   const base = useContext(EditBaseContext), literals = useJsonSourceLiterals(), portal = useJsonViewsPortalContainer()
   const anchorRef = useRef<HTMLElement | null>(null); anchorRef.current = selected?.anchor ?? null
   // A bound field is laid out by the template, not by a column, so the popup
@@ -72,7 +73,10 @@ export function HtmlView({ compiled, view, editing, fillHeight, onCurrentPathCha
         const resolved = resolve(node.attrs.source ?? '', aliases)
         if (!Array.isArray(resolved.value)) throw new Error('jv-repeat source must be an array')
         const keys = htmlRepeatKeys(resolved.value, node.attrs.key)
-        return resolved.value.map((_, index) => <Fragment key={`${node.id}:${keys[index]}`}>{render(node.children, { ...aliases, [alias]: [...resolved.sourcePath, index] })}</Fragment>)
+        if (node.attrs.order && !['forward', 'reverse'].includes(node.attrs.order)) throw new Error('Repeat order must be forward or reverse')
+        const indices = resolved.value.map((_, index) => index)
+        if (node.attrs.order === 'reverse') indices.reverse()
+        return indices.map(index => <Fragment key={`${node.id}:${keys[index]}`}>{render(node.children, { ...aliases, [alias]: [...resolved.sourcePath, index] })}</Fragment>)
       }
       const props: Record<string, unknown> = { key: node.id }
       const mapping: Record<string, string> = { class: 'className', for: 'htmlFor', tabindex: 'tabIndex', readonly: 'readOnly', maxlength: 'maxLength', viewbox: 'viewBox', preserveaspectratio: 'preserveAspectRatio', 'stroke-width': 'strokeWidth', 'text-anchor': 'textAnchor', 'font-size': 'fontSize', 'font-family': 'fontFamily' }
@@ -87,9 +91,14 @@ export function HtmlView({ compiled, view, editing, fillHeight, onCurrentPathCha
       if (node.tag === 'jv-field' || node.tag === 'jv-value') {
         const resolved = resolve(node.attrs.bind ?? '', aliases), value = resolved.value
         if (value !== null && typeof value === 'object') throw new Error('Use jv-repeat for arrays and objects')
-        const text = literals(resolved.sourcePath) ?? (value == null ? '—' : String(value))
-        const canEdit = node.tag === 'jv-field' && editing && editing.canReplace?.(resolved.sourcePath) !== false
-        return <span key={node.id}>{canEdit ? <button className="jv-field" aria-label={`Edit ${node.attrs.bind}`} onClick={event => setSelected({ path: resolved.sourcePath, anchor: event.currentTarget, base })}>{text}</button> : text}</span>
+        const resolveValue = (binding: string) => resolve(binding, aliases).value
+        const text = formatHtmlValue(value, node.attrs, resolveValue) ?? literals(resolved.sourcePath) ?? (value == null ? '—' : String(value))
+        const sync = node.attrs['sync-bind'] ? resolve(node.attrs['sync-bind'], aliases) : undefined
+        const byteLength = node.attrs['byte-length-bind'] ? resolve(node.attrs['byte-length-bind'], aliases) : undefined
+        if (sync && sync.value !== null && typeof sync.value === 'object') throw new Error('sync-bind must address a scalar')
+        if (byteLength && (node.attrs.format !== 'base64url' || typeof byteLength.value !== 'number')) throw new Error('byte-length-bind requires base64url and a numeric size field')
+        const canEdit = node.tag === 'jv-field' && editing && [resolved, sync, byteLength].every(target => !target || editing.canReplace?.(target.sourcePath) !== false)
+        return <span key={node.id}>{canEdit ? <button className="jv-field" aria-label={node.attrs['aria-label'] ?? `Edit ${node.attrs.bind}`} onClick={event => setSelected({ path: resolved.sourcePath, anchor: event.currentTarget, base, attrs: node.attrs, resolve: resolveValue, syncPath: sync?.sourcePath, byteLengthPath: byteLength?.sourcePath })}>{text}</button> : text}</span>
       }
       if (node.attrs['jv-bind']) {
         if (node.tag !== 'input' && node.tag !== 'textarea') throw new Error('jv-bind requires input or textarea')
@@ -109,13 +118,35 @@ export function HtmlView({ compiled, view, editing, fillHeight, onCurrentPathCha
   const descriptor = selected ? schemaForJsonViewPath(compiled.schema, selected.path)?.descriptor ?? { type: typeof selectedValue === 'number' ? 'number' : typeof selectedValue === 'boolean' ? 'checkbox' : 'text' } : undefined
   // Text too long for one line gets the resizable multi-line control, matching
   // how tables and records present the same value.
-  const editorDescriptor = descriptor?.type === 'text' && isLongText(selectedValue, descriptor) ? { ...descriptor, multiline: true } : descriptor
+  let editorValue = selectedValue
+  let formattedDescriptor = selected?.attrs.format === 'base64url' ? { type: 'text', multiline: true } : descriptor
+  try {
+    if (selected) editorValue = htmlValueForEditing(selectedValue, selected.attrs, selected.resolve)
+    if (selected?.attrs.format === 'currency-minor' && descriptor) {
+      formattedDescriptor = { ...descriptor }
+      for (const key of ['minimum', 'maximum', 'step']) {
+        if (typeof descriptor[key] === 'number') formattedDescriptor[key] = htmlValueForEditing(descriptor[key], selected.attrs, selected.resolve)
+      }
+    }
+  } catch {
+    // A source change can invalidate an open field. Its stale-save guard still
+    // rejects the draft; rendering that state must not crash the whole view.
+  }
+  const editorDescriptor = formattedDescriptor?.type === 'text' && isLongText(editorValue, formattedDescriptor) ? { ...formattedDescriptor, multiline: true } : formattedDescriptor
   return <div className="flex min-h-0 flex-1 flex-col" data-id="jsonView-html-view">
     {(error || warnings.length > 0) && <div role="alert" className="border-b p-2 text-xs">{error || warnings.slice(0, 10).join(' · ')}{error && <button onClick={() => setError('')} className="ml-2 underline">Dismiss</button>}</div>}
     <iframe ref={frame} title={view.name} sandbox="allow-same-origin" srcDoc={skeleton} className="w-full flex-1 border-0" style={{ minHeight: fillHeight ? 200 : height, height: fillHeight ? '100%' : height }} onLoad={event => { setDoc(event.currentTarget.contentDocument ?? undefined); setSelected(undefined) }} />
     {doc?.getElementById('mount') && createPortal(content, doc.getElementById('mount')!)}
     {selected && editorDescriptor && editing && portal && createPortal(<div ref={editorRef} data-anchored-popup className="z-[120] w-80 rounded-md border bg-card p-3 text-card-foreground shadow-lg" style={position}>
-      <EditBaseContext.Provider value={base}><SchemaEditor key={`${view.id}:${JSON.stringify(selected.path)}`} descriptor={editorDescriptor} disabled={editing.saving} label={String(selected.path.at(-1) ?? 'value')} variant="default" value={selectedValue} onCancel={() => { const anchor = selected.anchor; setSelected(undefined); if (anchor.isConnected) anchor.focus() }} onCommit={async value => { if (selected.base !== base) throw new Error('This document changed outside this editor. Cancel and reopen it before saving.'); await editing.replace(selected.path, value) }} /></EditBaseContext.Provider>
+      <EditBaseContext.Provider value={base}><SchemaEditor key={`${view.id}:${JSON.stringify(selected.path)}`} descriptor={editorDescriptor} disabled={editing.saving} label={selected.attrs['aria-label'] ?? String(selected.path.at(-1) ?? 'value')} variant="default" value={editorValue} onCancel={() => { const anchor = selected.anchor; setSelected(undefined); if (anchor.isConnected) anchor.focus() }} onCommit={async value => {
+        if (selected.base !== base) throw new Error('This document changed outside this editor. Cancel and reopen it before saving.')
+        const encoded = htmlValueFromEditing(value, selected.attrs, selected.resolve)
+        const replacements = [{ path: selected.path, value: encoded }]
+        if (selected.syncPath) replacements.push({ path: selected.syncPath, value: encoded })
+        if (selected.byteLengthPath) replacements.push({ path: selected.byteLengthPath, value: new TextEncoder().encode(String(value)).length })
+        if (replacements.length > 1) await editing.replaceMany(replacements)
+        else await editing.replace(selected.path, encoded)
+      }} /></EditBaseContext.Provider>
     </div>, portal)}
   </div>
 }

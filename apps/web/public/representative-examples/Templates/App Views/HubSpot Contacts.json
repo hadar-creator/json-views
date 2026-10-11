@@ -1,0 +1,89 @@
+{
+  "$jsonviews": {
+    "version": 1,
+    "schema": {
+      "$.results[*].properties.firstname": {
+        "type": "text"
+      },
+      "$.results[*].properties.lastname": {
+        "type": "text"
+      },
+      "$.results[*].properties.company": {
+        "type": "text"
+      },
+      "$.results[*].properties.email": {
+        "type": "email"
+      },
+      "$.results[*].properties.hs_lead_status": {
+        "type": "select",
+        "options": [
+          "NEW",
+          "OPEN",
+          "IN_PROGRESS",
+          "OPEN_DEAL",
+          "UNQUALIFIED",
+          "ATTEMPTED_TO_CONTACT",
+          "CONNECTED",
+          "BAD_TIMING"
+        ]
+      }
+    },
+    "views": [
+      {
+        "css": "*{box-sizing:border-box}body{background:#fff}.app{margin:0 auto;background:#fff;color:#202124;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif;border:1px solid #e4e5e7;border-radius:9px;overflow:hidden}.jv-field{font:inherit;color:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;white-space:inherit;max-width:100%;overflow-wrap:anywhere;cursor:text;border:0;border-radius:3px;padding:0;background:transparent}.jv-field:hover{background:#f1f3f5;outline:none!important}.jv-field:focus-visible{outline:2px solid #5f65d8;outline-offset:3px}.sample-note{font-size:11px;color:#80848c;padding:13px 24px;margin:0;border-top:1px solid #f0f0f1}h1,h2,p{margin:0}.muted{color:#70757a}svg{vertical-align:middle;flex-shrink:0}@media(max-width:550px){.app{border-radius:6px}.sample-note{padding:12px 18px}}.hubspot{max-width:1180px;color:#33475b;border-color:#cbd6e2;border-radius:4px;font-family:Arial,sans-serif}.hubspot header{padding:24px 26px}.hubspot h1{font-size:25px;line-height:1.25;font-weight:600;color:#33475b}.table-scroll{overflow-x:auto}.table{border-collapse:collapse;text-align:left;width:100%;font-size:13px;white-space:nowrap}.th{background:#f5f8fa;border-top:1px solid #cbd6e2;border-bottom:1px solid #cbd6e2;text-transform:uppercase;font-size:10px;letter-spacing:.04em;font-weight:700;padding:13px 20px}.td{border-bottom:1px solid #e4eaf0;padding:18px 20px;min-height:56px}.th:first-child,.td:first-child{padding-left:26px}.tbody .row:last-child .td{border-bottom:0}.tbody .row:hover{background:#f5f8fa}.name{font-weight:700;color:#0091ae}.email{color:#0091ae}.date{color:#607891}.hubspot .sample-note{color:#7c98b6;border-color:#e4eaf0}@media(max-width:750px){.table{min-width:850px}.hubspot header{padding:20px}} .row{display:grid;grid-template-columns:minmax(140px,1fr) minmax(200px,1.4fr) minmax(140px,1fr) 140px 165px;align-items:stretch}.td,.th{display:flex;flex-direction:column;justify-content:center;min-width:0}.td.amount{display:block;padding-top:20px}.td.amount>span{display:inline}.td .status{align-self:flex-start}.stripe .table{min-width:900px}.hubspot .table{min-width:850px}.td.name{display:block;padding-top:20px}.td.description{display:block;padding-top:16px} .td{height:auto;min-height:68px}",
+        "display": "html",
+        "html": "<main class=\"app hubspot\"><header><h1>Contacts</h1></header><div class=\"table-scroll\"><div class=\"table\" role=\"table\"><div class=\"thead\" role=\"rowgroup\"><div class=\"row\" role=\"row\"><div class=\"th\" role=\"columnheader\">Name</div><div class=\"th\" role=\"columnheader\">Email</div><div class=\"th\" role=\"columnheader\">Company</div><div class=\"th\" role=\"columnheader\">Lead status</div><div class=\"th\" role=\"columnheader\">Last activity</div></div></div><div class=\"tbody\" role=\"rowgroup\"><jv-repeat source=\"$.results\" as=\"contact\" key=\"id\"><div class=\"row\" role=\"row\"><div class=\"td name\" role=\"cell\"><jv-field bind=\"contact.properties.firstname\"></jv-field> <jv-field bind=\"contact.properties.lastname\"></jv-field></div><div class=\"td email\" role=\"cell\"><jv-field bind=\"contact.properties.email\"></jv-field></div><div class=\"td\" role=\"cell\"><jv-field bind=\"contact.properties.company\"></jv-field></div><div class=\"td\" role=\"cell\"><jv-field bind=\"contact.properties.hs_lead_status\" labels=\"{&quot;NEW&quot;: &quot;New&quot;, &quot;OPEN&quot;: &quot;Open&quot;, &quot;IN_PROGRESS&quot;: &quot;In progress&quot;, &quot;OPEN_DEAL&quot;: &quot;Open deal&quot;, &quot;UNQUALIFIED&quot;: &quot;Unqualified&quot;, &quot;ATTEMPTED_TO_CONTACT&quot;: &quot;Attempted to contact&quot;, &quot;CONNECTED&quot;: &quot;Connected&quot;, &quot;BAD_TIMING&quot;: &quot;Bad timing&quot;}\"></jv-field></div><div class=\"td date\" role=\"cell\"><jv-value bind=\"contact.properties.notes_last_updated\" format=\"datetime\" time-zone=\"Asia/Jerusalem\"></jv-value></div></div></jv-repeat></div></div></div><p class=\"sample-note\">Sample data · Click values to edit locally.</p></main>",
+        "id": "hubspot-contacts",
+        "name": "HubSpot contacts",
+        "path": "$"
+      }
+    ]
+  },
+  "results": [
+    {
+      "archived": false,
+      "createdAt": "2026-09-10T08:31:00Z",
+      "id": "101",
+      "properties": {
+        "company": "Lumen Labs",
+        "email": "avery@lumen.example",
+        "firstname": "Avery",
+        "hs_lead_status": "OPEN",
+        "lastname": "Stone",
+        "hubspot_owner_id": "501",
+        "notes_last_updated": "2026-09-17T07:20:00Z"
+      },
+      "updatedAt": "2026-09-17T07:20:00Z"
+    },
+    {
+      "archived": false,
+      "createdAt": "2026-08-29T11:15:00Z",
+      "id": "102",
+      "properties": {
+        "company": "Atlas Works",
+        "email": "samir@atlas.example",
+        "firstname": "Samir",
+        "hs_lead_status": "CONNECTED",
+        "lastname": "Patel",
+        "hubspot_owner_id": "502",
+        "notes_last_updated": "2026-09-16T14:02:00Z"
+      },
+      "updatedAt": "2026-09-16T14:02:00Z"
+    },
+    {
+      "archived": false,
+      "createdAt": "2026-08-18T09:00:00Z",
+      "id": "103",
+      "properties": {
+        "company": "Orbit Systems",
+        "email": "noa@orbit.example",
+        "firstname": "Noa",
+        "hs_lead_status": "IN_PROGRESS",
+        "lastname": "Levi",
+        "hubspot_owner_id": "501",
+        "notes_last_updated": "2026-09-14T16:44:00Z"
+      },
+      "updatedAt": "2026-09-14T16:44:00Z"
+    }
+  ]
+}

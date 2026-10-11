@@ -8,6 +8,11 @@ Contributions are welcome.
 4. `npm run check:architecture` enforces package boundaries, runtime dependency declarations, host API isolation, and acyclic production imports.
 5. Keep host-specific APIs outside `packages/core` and `packages/react`.
 
+Dependency constraints to preserve when updating packages:
+
+- `@codemirror/language` is pinned to `6.12.4`: version `6.13.0` imports the undeclared `@codemirror/streamparser` package and breaks clean consumer installs. Remove the pin only after both React 18 and 19 package-consumer checks pass with a corrected release.
+- The root override uses `@parcel/watcher` `2.6.0` for Tailwind's CLI, removing the vulnerable `micromatch`/`braces` dependency chain. Remove it when the CLI itself selects a patched watcher; retain the security audit and verify file-change events.
+
 New types belong in the type registry. New editors belong in the widget registry; do not add type-specific branches to the shared viewer unless the display behavior itself is universal.
 
 Start with the [architecture](#architecture) notes below, the [annotation specification](packages/core/README.md#annotation-specification), and [React integration](packages/react/README.md#react-integration). A descriptor extension should document its JSON representation, validation, editor conversion, sort/filter semantics, and a small working fixture.

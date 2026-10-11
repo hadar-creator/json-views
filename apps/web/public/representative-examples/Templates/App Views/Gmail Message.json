@@ -1,0 +1,68 @@
+{
+  "$jsonviews": {
+    "version": 1,
+    "schema": {
+      "$.payload.headers[*].value": {
+        "type": "text"
+      },
+      "$.snippet": {
+        "type": "text"
+      },
+      "$.payload.body.data": {
+        "type": "text",
+        "multiline": true
+      }
+    },
+    "views": [
+      {
+        "id": "gmail-message",
+        "name": "Gmail message",
+        "path": "$",
+        "display": "html",
+        "html": "<main class=\"app gmail\"><header class=\"brand\"><svg width=\"27\" height=\"21\" viewBox=\"0 0 24 18\" aria-hidden=\"true\"><path d=\"M2 4v12h4V7\" fill=\"#4285f4\"></path><path d=\"M18 7v9h4V4\" fill=\"#34a853\"></path><path d=\"M2 2v4l10 7L22 6V2L12 9z\" fill=\"#ea4335\"></path><path d=\"M2 2v4l4 3V4z\" fill=\"#c5221f\"></path><path d=\"M18 4v5l4-3V2z\" fill=\"#fbbc04\"></path></svg><span>Gmail</span></header><section class=\"mail\"><h1><jv-field bind=\"$.payload.headers[2].value\"></jv-field></h1><div class=\"meta\"><span class=\"avatar\">M</span><div class=\"sender\"><strong><jv-field bind=\"$.payload.headers[0].value\" aria-label=\"Sender\"></jv-field></strong><small>to <jv-field bind=\"$.payload.headers[1].value\" aria-label=\"Recipient\"></jv-field></small></div><span class=\"date\"><jv-value bind=\"$.internalDate\" format=\"datetime\" date-unit=\"milliseconds\" time-zone=\"Asia/Jerusalem\"></jv-value></span></div><article><jv-field bind=\"$.payload.body.data\" format=\"base64url\" byte-length-bind=\"$.payload.body.size\" aria-label=\"Message body\"></jv-field></article></section><p class=\"sample-note\">Sample data · Click values to edit locally.</p></main>",
+        "css": "*{box-sizing:border-box}body{background:#fff}.app{margin:0 auto;background:#fff;color:#202124;font:14px/1.5 -apple-system,BlinkMacSystemFont,\"Segoe UI\",Arial,sans-serif;border:1px solid #e4e5e7;border-radius:9px;overflow:hidden}.jv-field{font:inherit;color:inherit;line-height:inherit;letter-spacing:inherit;text-align:left;white-space:inherit;max-width:100%;overflow-wrap:anywhere;cursor:text;border:0;border-radius:3px;padding:0;background:transparent}.jv-field:hover{background:#f1f3f5;outline:none!important}.jv-field:focus-visible{outline:2px solid #5f65d8;outline-offset:3px}.sample-note{font-size:11px;color:#80848c;padding:13px 24px;margin:0;border-top:1px solid #f0f0f1}h1,h2,p{margin:0}.muted{color:#70757a}svg{vertical-align:middle;flex-shrink:0}@media(max-width:550px){.app{border-radius:6px}.sample-note{padding:12px 18px}}.gmail{max-width:1000px;font-family:Arial,sans-serif}.brand{display:flex;align-items:center;gap:10px;height:56px;padding:0 28px;background:#f6f8fc;border-bottom:1px solid #edf0f5;color:#5f6368;font-size:20px}.mail{padding:28px 32px 36px}.mail h1{margin:0 0 27px 52px;font-size:23px;font-weight:400;line-height:1.35}.meta{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center}.avatar{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#7b55b7;color:#fff;font-size:20px}.sender{min-width:0}.sender strong{font-size:13px;font-weight:600;overflow-wrap:anywhere}.sender small{display:block;font-size:12px;color:#5f6368;margin-top:2px;overflow-wrap:anywhere}.date{font-size:12px;color:#5f6368;white-space:nowrap}.mail article{margin:24px 0 0 52px;max-width:760px;font-size:14px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}@media(max-width:650px){.brand{padding:0 20px}.mail{padding:24px 20px 30px}.mail h1{margin-left:0;font-size:21px}.meta{grid-template-columns:36px minmax(0,1fr);gap:9px 10px}.avatar{width:36px;height:36px}.date{grid-column:2}.mail article{margin-left:0}}"
+      }
+    ]
+  },
+  "id": "18d8f5b9a01",
+  "threadId": "18d8f5b9a01",
+  "labelIds": [
+    "INBOX",
+    "IMPORTANT"
+  ],
+  "snippet": "I incorporated the feedback from yesterday into the Q3 launch plan. The remaining decisions are highlighted in the review document.",
+  "historyId": "28417",
+  "internalDate": "1789630920000",
+  "payload": {
+    "partId": "",
+    "mimeType": "text/plain",
+    "filename": "",
+    "headers": [
+      {
+        "name": "From",
+        "value": "Maya Chen <maya@northstar.example>"
+      },
+      {
+        "name": "To",
+        "value": "Niv <niv@company.example>"
+      },
+      {
+        "name": "Subject",
+        "value": "Q3 launch plan — final review"
+      },
+      {
+        "name": "Date",
+        "value": "Thu, 17 Sep 2026 10:42:00 +0300"
+      },
+      {
+        "name": "Content-Type",
+        "value": "text/plain; charset=UTF-8"
+      }
+    ],
+    "body": {
+      "size": 341,
+      "data": "SGkgTml2LAoKSSBpbmNvcnBvcmF0ZWQgdGhlIGZlZWRiYWNrIGZyb20geWVzdGVyZGF5IGludG8gdGhlIFEzIGxhdW5jaCBwbGFuLiBUaGUgcmVtYWluaW5nIGRlY2lzaW9ucyBhcmUgaGlnaGxpZ2h0ZWQgaW4gdGhlIHJldmlldyBkb2N1bWVudC4KCuKAoiBDb25maXJtIHRoZSBhbm5vdW5jZW1lbnQgZGF0ZQrigKIgQXBwcm92ZSB0aGUgY3VzdG9tZXIgbWlncmF0aW9uIGNvcHkK4oCiIFNlbGVjdCB0aGUgZmluYWwgcHJvZHVjdCBzY3JlZW5zaG90CgpQbGVhc2UgbGVhdmUgY29tbWVudHMgYmVmb3JlIDE1OjAwIHNvIEkgY2FuIHB1Ymxpc2ggdGhlIGZpbmFsIHZlcnNpb24uCgpUaGFua3MsCk1heWE"
+    }
+  },
+  "sizeEstimate": 741
+}
