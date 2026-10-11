@@ -1,15 +1,30 @@
 import { compileJsonViewMetadata } from './metadata.js'
 import { isJsonViewTableCandidate } from './table-suitability.js'
 
+/** Counts scalar values, stopping once the count passes the limit. */
+function countLeaves(root: unknown, limit: number): number {
+  let leaves = 0
+  const pending: unknown[] = [root]
+  while (pending.length) {
+    const value = pending.pop()
+    if (value !== null && typeof value === 'object') pending.push(...Object.values(value))
+    else if ((leaves += 1) > limit) break
+  }
+  return leaves
+}
+
 /** Initial presentation only. Never changes a user's selection during edits. */
 export function prefersSource(content: string, metadata?: unknown): boolean {
   try {
     const root: unknown = JSON.parse(content)
-    const compiled = compileJsonViewMetadata(root, undefined, metadata === undefined ? {} : { metadata })
-    if (compiled.metadataSource !== 'inferred' || compiled.views.length || isJsonViewTableCandidate(root)) return false
+    // Every scalar takes a pretty-printed line of its own, so a document with
+    // more than 100 of them fails the size check below without a compile.
+    if (countLeaves(root, 100) > 100) return false
     const formatted = JSON.stringify(root, null, 2)
     const lines = formatted.split('\n').length
     if (formatted.length > 8000 || lines > 100) return false
+    const compiled = compileJsonViewMetadata(root, undefined, metadata === undefined ? {} : { metadata })
+    if (compiled.metadataSource !== 'inferred' || compiled.views.length || isJsonViewTableCandidate(root)) return false
     const entries = root !== null && typeof root === 'object' ? Object.values(root) : []
     // Dictionaries now fall back to properties when their fields differ. Keep
     // that structured presentation instead of switching them to source.

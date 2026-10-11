@@ -51,6 +51,8 @@ The compiler returns the untouched effective `metadata`, its `metadataSource` (`
 
 Only integer version `1` is supported. Other positive integer versions produce `unsupported-metadata-version`; malformed annotations produce `invalid-metadata`. The raw future metadata is retained for round trips and source editing. Consumers must not overwrite it with inferred metadata or version 1 settings.
 
+Checking every document value against the schema is most of the compile time on large documents. Callers that only need the compiled schema and views, such as a route or settings panel, can pass `{ validateValues: false }`: the schema, views, and every other diagnostic are identical, and value diagnostics are omitted.
+
 ### Paths and precedence
 
 All paths start at `$`. Supported segments are `.property`, `['quoted property']`, `[0]`, and `[*]`. Quoted properties support single-quote, backslash, slash, control-character, and `\uXXXX` escapes. Array indices are nonnegative safe integers without leading zeros. A numeric-looking object key is a string property, such as `$['0']`; it is different from `$[0]`.
@@ -161,7 +163,7 @@ Patching helpers preserve unrelated bytes. The agent-facing mutation API accepts
 
 Compiled metadata includes the root and each view's `value` snapshot for direct rendering. `applyJsonViewViewRows`, `projectJsonViewCollection`, and `resolveJsonViewRowPath` resolve against their explicit current-root argument. `getJsonViewViewRows(view, root)` does the same; `getJsonViewViewRows(view)` intentionally reads the compiled snapshot. Recompile when annotations or registry behavior change, or to refresh diagnostics and inferred options for a new document revision.
 
-The synchronous compiler and scanner have no universal document-size guarantee. Table virtualization limits mounted rows, not parsing, validation, projection, or Kanban work. Source revision caching avoids unnecessary repeat work; applications handling very large documents should perform compilation/inspection in a worker and choose their own measured size budgets. The test workload covers 1,000 independent edits within a 10,000-row document, and comparator/adversarial-pattern regressions are retained in the core suite.
+The synchronous compiler and scanner have no universal document-size guarantee. Table virtualization limits mounted rows, not parsing, validation, projection, or Kanban work. `inspectJsonSource` keeps the diagnostics of the most recently inspected text, so hosts that inspect one revision several times pay for one scan; applications handling very large documents should perform compilation/inspection in a worker and choose their own measured size budgets. The test workload covers 1,000 independent edits within a 10,000-row document, and comparator/adversarial-pattern regressions are retained in the core suite.
 
 ### Host acknowledgements and reloads
 

@@ -52,3 +52,47 @@ it('preserves end alignment, flips above a bottom-edge trigger, and dismisses ou
   await act(async () => document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true })))
   expect(document.querySelector('[data-id="jsonView-add-view-menu"]')).toBeNull()
 })
+
+it('decides availability from the current path alone, as listing every location would', async () => {
+  const root = { rows: [{ name: 'Ada' }], 'odd key': { nested: [1] }, $jsonviews: { version: 1, views: [] } }
+  const cases: Array<[currentPath: string | undefined, unavailable: boolean]> = [
+    [undefined, false],
+    ['$', false],
+    ['$.rows', false],
+    ['$.rows[0]', false],
+    ['$.rows[0].name', false],
+    ["$['odd key'].nested", false],
+    ['$.$jsonviews', true],
+    ['$.$jsonviews.views', true],
+    ['$.missing', true],
+    ['$.rows[5]', true],
+    ["$['rows']", true],
+    ['$.rows[*]', true],
+    ['nope', true],
+  ]
+  for (const [currentPath, unavailable] of cases) {
+    rendered = await renderComponent(<JsonViewAddView root={root} schema={[]} currentPath={currentPath} onAdd={async () => {}} />)
+    const button = rendered.container.querySelector('[data-id="jsonView-add-view"]')!
+    expect(button.getAttribute('aria-disabled'), String(currentPath)).toBe(unavailable ? 'true' : 'false')
+    if (unavailable) expect(button.getAttribute('aria-label'), String(currentPath)).toContain('not document data')
+    await rendered.cleanup()
+    rendered = undefined
+  }
+  rendered = await renderComponent(<JsonViewAddView root="scalar" schema={[]} onAdd={async () => {}} />)
+  expect(rendered.container.querySelector('[data-id="jsonView-add-view"]')!.getAttribute('aria-disabled')).toBe('true')
+})
+
+it('offers table and Kanban for a record collection reached by path and names the view after it', async () => {
+  const onAdd = vi.fn(async () => {})
+  rendered = await renderComponent(<JsonViewsSurface>
+    <JsonViewAddView root={{ data: { taskList: [{ title: 'A', status: 'Open' }, { title: 'B', status: 'Done' }] } }} schema={[]} currentPath="$.data.taskList" onAdd={onAdd} />
+  </JsonViewsSurface>)
+  await click(rendered.container.querySelector('[data-id="jsonView-add-view"]'))
+  const menu = document.querySelector<HTMLElement>('[data-id="jsonView-add-view-menu"]')!
+  expect(menu.querySelector('input')!.value).toBe('Data › Task List')
+  await click(menu.querySelector('[data-id="jsonView-new-kanban"]'))
+  await click(menu.querySelector('[data-id="jsonView-create-view"]'))
+  expect(onAdd).toHaveBeenCalledWith(expect.objectContaining({
+    path: '$.data.taskList', recordCollection: true, display: 'kanban', name: 'Data › Task List', groupBy: expect.stringContaining('title'),
+  }))
+})

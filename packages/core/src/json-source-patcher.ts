@@ -34,6 +34,29 @@ interface JsonSourceProperty {
   value: JsonSourceNode
 }
 
+// Character codes the scanner dispatches on. The text is already valid JSON.
+const QUOTE = 0x22
+const COMMA = 0x2c
+const MINUS = 0x2d
+const COLON = 0x3a
+const OPEN_BRACKET = 0x5b
+const BACKSLASH = 0x5c
+const CLOSE_BRACKET = 0x5d
+const OPEN_BRACE = 0x7b
+const CLOSE_BRACE = 0x7d
+
+function isJsonWhitespace(code: number): boolean {
+  return code === 0x20 || code === 0x0a || code === 0x0d || code === 0x09
+}
+
+function isDigit(code: number): boolean {
+  return code >= 0x30 && code <= 0x39
+}
+
+function isNumberCharacter(code: number): boolean {
+  return isDigit(code) || code === 0x2e || code === MINUS || code === 0x2b || code === 0x65 || code === 0x45
+}
+
 class JsonSourceScanner {
   private index = 0
   private readonly source: string
@@ -44,6 +67,7 @@ class JsonSourceScanner {
 
   parse(): JsonSourceNode {
     // Callers validate once with JSON.parse before scanning source spans.
+    const source = this.source
     const root = this.parseValue()
     const frames: Array<{ node: JsonSourceNode; afterValue: boolean; property?: JsonSourceProperty }> = []
     const push = (node: JsonSourceNode, property?: JsonSourceProperty) => {
@@ -56,15 +80,15 @@ class JsonSourceScanner {
       const frame = frames[frames.length - 1]
       const node = frame.node
       this.skipWhitespace()
-      const close = node.kind === 'array' ? ']' : '}'
-      if (this.source[this.index] === close) {
+      const close = node.kind === 'array' ? CLOSE_BRACKET : CLOSE_BRACE
+      if (source.charCodeAt(this.index) === close) {
         node.end = ++this.index
         if (frame.property) frame.property.end = node.end
         frames.pop()
         continue
       }
       if (frame.afterValue) {
-        if (this.source[this.index++] !== ',') throw new SyntaxError('Expected comma')
+        if (source.charCodeAt(this.index++) !== COMMA) throw new SyntaxError('Expected comma')
         this.skipWhitespace()
       }
       frame.afterValue = true
@@ -74,10 +98,12 @@ class JsonSourceScanner {
         push(value)
       } else {
         const start = this.index
-        this.scanString()
-        const key = JSON.parse(this.source.slice(start, this.index)) as string
+        // A key without escapes is its own text; JSON.parse decodes the rest.
+        const key = this.scanString()
+          ? JSON.parse(source.slice(start, this.index)) as string
+          : source.slice(start + 1, this.index - 1)
         this.skipWhitespace()
-        if (this.source[this.index++] !== ':') throw new SyntaxError('Expected colon')
+        if (source.charCodeAt(this.index++) !== COLON) throw new SyntaxError('Expected colon')
         const value = this.parseValue()
         const property = { key, start, end: value.end, value }
         node.properties!.push(property)
@@ -86,40 +112,53 @@ class JsonSourceScanner {
       }
     }
     this.skipWhitespace()
-    if (this.index !== this.source.length) throw new SyntaxError('Unexpected content after JSON value')
+    if (this.index !== source.length) throw new SyntaxError('Unexpected content after JSON value')
     return root
   }
 
   private skipWhitespace(): void {
-    while (this.index < this.source.length && /[\t\n\r ]/.test(this.source[this.index])) this.index++
+    const source = this.source
+    let index = this.index
+    while (index < source.length && isJsonWhitespace(source.charCodeAt(index))) index += 1
+    this.index = index
   }
 
   private parseValue(): JsonSourceNode {
     this.skipWhitespace()
     const start = this.index
-    const token = this.source[this.index]
+    const code = this.source.charCodeAt(start)
 
-    if (token === '{') { this.index++; return { start, end: this.index, kind: 'object', properties: [], propertyIndex: new Map() } }
-    if (token === '[') { this.index++; return { start, end: this.index, kind: 'array', items: [] } }
-    if (token === '"') {
+    if (code === OPEN_BRACE) { this.index += 1; return { start, end: this.index, kind: 'object', properties: [], propertyIndex: new Map() } }
+    if (code === OPEN_BRACKET) { this.index += 1; return { start, end: this.index, kind: 'array', items: [] } }
+    if (code === QUOTE) {
       this.scanString()
       return { start, end: this.index, kind: 'atomic' }
     }
-    if (token === 't') return this.scanLiteral(start, 'true')
-    if (token === 'f') return this.scanLiteral(start, 'false')
-    if (token === 'n') return this.scanLiteral(start, 'null')
+    if (code === 0x74) return this.scanLiteral(start, 'true')
+    if (code === 0x66) return this.scanLiteral(start, 'false')
+    if (code === 0x6e) return this.scanLiteral(start, 'null')
     return this.scanNumber(start)
   }
 
-  private scanString(): void {
-    if (this.source[this.index] !== '"') throw new SyntaxError('Expected JSON string')
-    this.index++
-    while (this.index < this.source.length) {
-      const token = this.source[this.index]
-      this.index++
-      if (token === '"') return
-      if (token === '\\') this.index++
+  /** Moves past the closing quote and reports whether the string used escapes. */
+  private scanString(): boolean {
+    const source = this.source
+    if (source.charCodeAt(this.index) !== QUOTE) throw new SyntaxError('Expected JSON string')
+    let index = this.index + 1
+    let escaped = false
+    while (index < source.length) {
+      const code = source.charCodeAt(index)
+      index += 1
+      if (code === QUOTE) {
+        this.index = index
+        return escaped
+      }
+      if (code === BACKSLASH) {
+        escaped = true
+        index += 1
+      }
     }
+    this.index = index
     throw new SyntaxError('Unterminated JSON string')
   }
 
@@ -129,9 +168,12 @@ class JsonSourceScanner {
   }
 
   private scanNumber(start: number): JsonSourceNode {
-    while (this.index < this.source.length && /[0-9eE+.-]/.test(this.source[this.index])) this.index++
-    if (this.index === start) throw new SyntaxError('Expected JSON value')
-    return { start, end: this.index, kind: 'atomic' }
+    const source = this.source
+    let index = start
+    while (index < source.length && isNumberCharacter(source.charCodeAt(index))) index += 1
+    if (index === start) throw new SyntaxError('Expected JSON value')
+    this.index = index
+    return { start, end: index, kind: 'atomic' }
   }
 }
 
@@ -241,9 +283,30 @@ export interface JsonSourceDiagnostic {
   help?: import('./annotation-capabilities.js').JsonViewDiagnosticHelp
 }
 
-/** Reads a source-preserving inspection value and identifies information JSON.parse cannot retain. */
-export function inspectJsonSource(source: string): { value: unknown; diagnostics: JsonSourceDiagnostic[] } {
-  const value: unknown = JSON.parse(source)
+interface InspectionFrame {
+  node: JsonSourceNode
+  parent: InspectionFrame | undefined
+  segment: string | number
+  shadowed: boolean
+}
+
+/** Paths are rebuilt from parent links only for the few nodes that report something. */
+function inspectionPath(frame: InspectionFrame): ValuePath {
+  const path: Array<string | number> = []
+  for (let current = frame; current.parent; current = current.parent) path.push(current.segment)
+  return path.reverse()
+}
+
+/** Integers of at most 15 digits round-trip exactly; -0 is the one exception. */
+function isPlainSafeInteger(token: string): boolean {
+  let index = token.charCodeAt(0) === MINUS ? 1 : 0
+  if (token.length - index < 1 || token.length - index > 15) return false
+  if (index === 1 && token.length === 2 && token.charCodeAt(1) === 0x30) return false
+  for (; index < token.length; index += 1) if (!isDigit(token.charCodeAt(index))) return false
+  return true
+}
+
+function inspectSourceDiagnostics(source: string): JsonSourceDiagnostic[] {
   const tree = new JsonSourceScanner(source).parse()
   const diagnostics: JsonSourceDiagnostic[] = []
   const decimalKey = (token: string): string => {
@@ -256,34 +319,37 @@ export function inspectJsonSource(source: string): { value: unknown; diagnostics
     const significant = digits.replace(/0+$/, '')
     return `${negative ? '-' : ''}${significant}e${Number(exponent) - fraction.length + digits.length - significant.length}`
   }
-  const pending: Array<{ node: JsonSourceNode; path: ValuePath; shadowed: boolean }> = [{ node: tree, path: [], shadowed: false }]
+  const pending: InspectionFrame[] = [{ node: tree, parent: undefined, segment: '', shadowed: false }]
   while (pending.length) {
-    const { node, path, shadowed } = pending.pop()!
+    const frame = pending.pop()!
+    const { node, shadowed } = frame
     if (node.kind === 'object') {
       const seen = new Set<string>()
-      for (const property of node.properties ?? []) {
-        const childPath = [...path, property.key]
-        const childShadowed = shadowed || node.propertyIndex?.get(property.key) !== property.value
+      for (const property of node.properties!) {
+        const childShadowed = shadowed || node.propertyIndex!.get(property.key) !== property.value
+        const child: InspectionFrame = { node: property.value, parent: frame, segment: property.key, shadowed: childShadowed }
         if (seen.has(property.key)) diagnostics.push({
-          code: 'duplicate-key', sourcePath: childPath, token: JSON.stringify(property.key),
+          code: 'duplicate-key', sourcePath: inspectionPath(child), token: JSON.stringify(property.key),
           ...(childShadowed ? { shadowed: true } : {}),
           start: property.start, end: property.end,
           message: 'Duplicate object key; structured inspection shows the last occurrence. Source retains every occurrence.',
         })
         seen.add(property.key)
-        pending.push({ node: property.value, path: childPath, shadowed: childShadowed })
+        pending.push(child)
       }
     } else if (node.kind === 'array') {
-      node.items?.forEach((child, index) => pending.push({ node: child, path: [...path, index], shadowed }))
+      node.items!.forEach((item, index) => pending.push({ node: item, parent: frame, segment: index, shadowed }))
     } else {
+      const first = source.charCodeAt(node.start)
+      if (first !== MINUS && !isDigit(first)) continue
       const token = source.slice(node.start, node.end)
-      if (!/^-?[0-9]/.test(token)) continue
+      if (isPlainSafeInteger(token)) continue
       const number = Number(token)
       if (!Number.isFinite(number) || Object.is(number, -0)
         || (Number.isInteger(number) && !Number.isSafeInteger(number))
         || decimalKey(token) !== decimalKey(String(number))) {
         diagnostics.push({
-          code: 'unsafe-number', sourcePath: path, token, start: node.start, end: node.end,
+          code: 'unsafe-number', sourcePath: inspectionPath(frame), token, start: node.start, end: node.end,
           ...(shadowed ? { shadowed: true } : {}),
           message: 'This numeric token cannot be safely edited through JavaScript numbers. Edit its exact value in Source.',
         })
@@ -291,7 +357,21 @@ export function inspectJsonSource(source: string): { value: unknown; diagnostics
     }
   }
   diagnostics.sort((a, b) => a.start - b.start)
-  return { value, diagnostics: diagnostics.map((item) => ({ ...item, help: sourceDiagnosticHelp(item.code) })) }
+  return diagnostics
+}
+
+let lastInspection: { source: string; diagnostics: JsonSourceDiagnostic[] } | undefined
+
+/** Reads a source-preserving inspection value and identifies information JSON.parse cannot retain. */
+export function inspectJsonSource(source: string): { value: unknown; diagnostics: JsonSourceDiagnostic[] } {
+  const value: unknown = JSON.parse(source)
+  // Hosts inspect one text several times per change. The scan is the expensive
+  // part, so its result is kept for the most recent source; callers still get
+  // their own value, diagnostic objects, and paths.
+  const cached = lastInspection !== undefined && lastInspection.source === source ? lastInspection.diagnostics : undefined
+  const diagnostics = cached ?? inspectSourceDiagnostics(source)
+  if (!cached) lastInspection = { source, diagnostics }
+  return { value, diagnostics: diagnostics.map((item) => ({ ...item, sourcePath: [...item.sourcePath], help: sourceDiagnosticHelp(item.code) })) }
 }
 
 /** Replaces one existing JSON value while preserving every unrelated source byte. */

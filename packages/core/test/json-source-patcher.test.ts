@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import {
   appendJsonArrayItemInSource,
+  inspectJsonSource,
+  jsonSourceRangeAtPath,
   removeJsonValueInSource,
   replaceJsonAtomicValueInSource,
   replaceJsonValueInSource,
@@ -108,6 +110,47 @@ describe('JSON source token replacement', () => {
 
   it('rejects invalid source JSON', () => {
     expect(() => replaceJsonAtomicValueInSource('{', ['value'], 'after')).toThrow(SyntaxError)
+  })
+
+  it('rejects a byte order mark like JSON.parse does', () => {
+    expect(() => replaceJsonValueInSource('﻿{"value":1}', ['value'], 2)).toThrow(SyntaxError)
+    expect(() => inspectJsonSource('﻿{}')).toThrow(SyntaxError)
+  })
+
+  it('keeps UTF-16 offsets exact after non-ASCII text and surrogate pairs', () => {
+    const source = '{"emoji":"🙂🙂","名前":"値","target":1}'
+    const start = source.lastIndexOf('1')
+    expect(jsonSourceRangeAtPath(source, ['target'])).toEqual({ start, end: start + 1 })
+    expect(replaceJsonValueInSource(source, ['target'], 2)).toBe('{"emoji":"🙂🙂","名前":"値","target":2}')
+    expect(replaceJsonValueInSource(source, ['名前'], '新')).toBe('{"emoji":"🙂🙂","名前":"新","target":1}')
+  })
+
+  it('resolves keys containing escaped quotes and backslashes', () => {
+    const source = '{"a\\"b":1,"c\\\\d":2}'
+    expect(replaceJsonValueInSource(source, ['a"b'], 3)).toBe('{"a\\"b":3,"c\\\\d":2}')
+    expect(replaceJsonValueInSource(source, ['c\\d'], 4)).toBe('{"a\\"b":1,"c\\\\d":4}')
+  })
+
+  it('treats a unicode-escaped key and its literal spelling as duplicates', () => {
+    const source = '{"a\\u0062":1,"ab":2}'
+    const second = source.indexOf('"ab"')
+    expect(inspectJsonSource(source).diagnostics).toEqual([
+      expect.objectContaining({ code: 'duplicate-key', sourcePath: ['ab'], token: '"ab"', start: second, end: second + '"ab":2'.length }),
+    ])
+    expect(replaceJsonValueInSource(source, ['ab'], 3)).toBe('{"a\\u0062":1,"ab":3}')
+  })
+
+  it('scans uppercase exponents and flags only the overflowing one', () => {
+    const source = '{"a":1E2,"b":1.5E+3,"c":1E400,"d":true}'
+    expect(inspectJsonSource(source).diagnostics.map((item) => [item.code, item.sourcePath, item.token])).toEqual([
+      ['unsafe-number', ['c'], '1E400'],
+    ])
+    expect(replaceJsonValueInSource(source, ['d'], false)).toBe('{"a":1E2,"b":1.5E+3,"c":1E400,"d":false}')
+  })
+
+  it('appends to a multi-line empty array using the closing bracket indentation', () => {
+    expect(appendJsonArrayItemInSource('{\n  "rows": [\n  ]\n}', ['rows'], { name: 'x' }))
+      .toBe('{\n  "rows": [\n    {\n      "name": "x"\n    }\n  ]\n}')
   })
 })
 

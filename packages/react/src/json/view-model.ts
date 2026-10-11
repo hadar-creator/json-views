@@ -33,13 +33,16 @@ export function matchesSearch(value: unknown, query: string): boolean {
   }
 }
 
-export function rawViewsFor(compiled: CompiledJsonViewMetadata): unknown[] {
+// A stable empty result keeps memos that depend on the raw views from recomputing every render.
+const NO_RAW_VIEWS: readonly unknown[] = Object.freeze([])
+
+export function rawViewsFor(compiled: CompiledJsonViewMetadata): readonly unknown[] {
   const metadata = compiled.metadata
   if (metadata !== null && typeof metadata === 'object' && !Array.isArray(metadata)) {
     const views = (metadata as Record<string, unknown>).views
     if (Array.isArray(views)) return views
   }
-  return compiled.inference?.views ?? []
+  return compiled.inference?.views ?? NO_RAW_VIEWS
 }
 
 export function rawViewFor(compiled: CompiledJsonViewMetadata, view: CompiledJsonViewView): Record<string, unknown> | undefined {

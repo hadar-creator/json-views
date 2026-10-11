@@ -1,5 +1,5 @@
 import { documentFormat, embedJsonViewMetadata, filenameFromPath, openDocument, sourceError, untitledFilename, type OpenDocument, type RepresentativeSample } from './document-model.js'
-import { Component, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
+import { Component, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { Check, Download, Github, Moon, Plus, Settings, Share2, Sun, Upload, X } from 'lucide-react'
 import {
   CSVContent, InlineFeedbackAction, JSONContent, JsonViewsProvider, useJsonViewsDevice,
@@ -14,7 +14,7 @@ import {
   sourceDiagnosticHelp, validateCsvSource,
 } from '@script-it/json-views-core'
 import { exampleTypes, exampleWidgets } from './representative-registry.js'
-import { browserDocumentData, readBrowserWorkspace, subscribeBrowserWorkspace, writeBrowserPresentation, writeBrowserWorkspace, type CachedBrowserDocument, type CachedBrowserWorkspace } from './browser-workspace.js'
+import { readBrowserWorkspace, sameBrowserDocumentData, subscribeBrowserWorkspace, writeBrowserPresentation, writeBrowserWorkspace, type CachedBrowserDocument, type CachedBrowserWorkspace } from './browser-workspace.js'
 import {
   CONSOLE_HELP, jsonPatchDiagnostic, JsonViewsPatchValidationError, JsonViewsSourceValidationError, jsonSource,
   type JsonValue, type JsonViewsConsoleApi,
@@ -203,6 +203,40 @@ function documentDiagnostics(document: OpenDocument): JsonViewsDiagnostic[] {
   }
 }
 
+// Validity and diagnostics only change with a document's text, metadata, or
+// filename. The API reads them for every document on each list() call and
+// again after every write, so they are kept per controller until then.
+interface DerivedDocumentState {
+  content: string
+  metadata: unknown
+  filename: string
+  valid?: boolean
+  diagnostics?: readonly JsonViewsDiagnostic[]
+}
+const derivedDocumentState = new WeakMap<OpenDocument['controller'], DerivedDocumentState>()
+
+function derivedState(document: OpenDocument): DerivedDocumentState {
+  const content = document.controller.getSnapshot().content
+  const cached = derivedDocumentState.get(document.controller)
+  if (cached && cached.content === content && cached.metadata === document.metadata && cached.filename === document.filename) return cached
+  const next: DerivedDocumentState = { content, metadata: document.metadata, filename: document.filename }
+  derivedDocumentState.set(document.controller, next)
+  return next
+}
+
+function documentValid(document: OpenDocument): boolean {
+  const state = derivedState(document)
+  state.valid ??= sourceError(state.content, state.filename) === undefined
+  return state.valid
+}
+
+/** Shared with later reads. Read-only, so it can't be changed or handed to a caller without a copy. */
+function cachedDocumentDiagnostics(document: OpenDocument): readonly JsonViewsDiagnostic[] {
+  const state = derivedState(document)
+  state.diagnostics ??= documentDiagnostics(document)
+  return state.diagnostics
+}
+
 function documentAnalyticsProperties(document: OpenDocument, analyticsInterface: AnalyticsInterface) {
   return {
     format: documentFormat(document.filename),
@@ -329,7 +363,8 @@ export function App() {
   const browserWorkspaceReady = useRef(!initialToken && !initialShareHash && !initialRouteHash && import.meta.env.MODE === 'test')
   const cachedWorkspaceRef = useRef<CachedBrowserWorkspace | undefined>(undefined)
   const placeholderId = useRef(documents[0].id)
-  const parseError = sourceError(content, filename)
+  // Parsing the whole document on every render is visible latency on large files.
+  const parseError = useMemo(() => sourceError(content, filename), [content, filename])
   const { routeError, dismissRouteError } = useDocumentRoute({
     documents,
     activeDocumentId,
@@ -426,15 +461,15 @@ export function App() {
           }
           const before = submitted.get(document.id)!
           const live: CachedBrowserDocument = { ...document, content: document.controller.getSnapshot().content }
-          const remoteChanged = browserDocumentData(remote) !== browserDocumentData(before)
+          const remoteChanged = !sameBrowserDocumentData(remote, before)
           // Typing can continue during the transaction. Never replace those newer edits.
-          if (remoteChanged && browserDocumentData(live) !== browserDocumentData(before)) conflicts.add(document.id)
+          if (remoteChanged && !sameBrowserDocumentData(live, before)) conflicts.add(document.id)
           // Keep a remotely deleted active file open until acknowledged: a
           // field editor may still own a draft that has not reached the host.
           if (!remote && document.id === activeDocumentIdRef.current) conflicts.add(document.id)
           if (conflicts.has(document.id)) { updated.push(document); continue }
           if (!remote) continue
-          if (browserDocumentData(live) === browserDocumentData(before)) {
+          if (sameBrowserDocumentData(live, before)) {
             const snapshot = document.controller.getSnapshot()
             const revision = remote.revision === undefined ? undefined : String(remote.revision)
             if (snapshot.content !== remote.content || snapshot.revision !== revision) {
@@ -450,7 +485,7 @@ export function App() {
         for (const before of workspace.documents) {
           if (updated.some((document) => document.id === before.id)) continue
           const remote = saved.get(before.id!)
-          if (remote && browserDocumentData(remote) !== browserDocumentData(before)) {
+          if (remote && !sameBrowserDocumentData(remote, before)) {
             conflicts.add(before.id!)
             updated.push(...restoreBrowserDocuments({ ...workspace, documents: [before] }))
           }
@@ -717,7 +752,7 @@ export function App() {
     const activeDataNeedsSaving = () => {
       const current = buildBrowserWorkspace()?.documents.find((document) => document.id === activeDocumentIdRef.current)
       const saved = cachedWorkspaceRef.current?.documents.find((document) => document.id === activeDocumentIdRef.current)
-      return browserDocumentData(current) !== browserDocumentData(saved)
+      return !sameBrowserDocumentData(current, saved)
     }
     const persist = () => {
       const generation = ++workspaceSaveGeneration.current
@@ -860,19 +895,20 @@ export function App() {
       const documentSnapshot = document.controller.getSnapshot()
       return {
         active: document.id === activeDocumentIdRef.current,
-        ...(includeDiagnosticCount ? { diagnosticCount: documentDiagnostics(document).length } : {}),
+        ...(includeDiagnosticCount ? { diagnosticCount: cachedDocumentDiagnostics(document).length } : {}),
         filename: document.filename,
         ...(document.relativePath ? { relativePath: document.relativePath } : {}),
         id: document.id,
         ...(document.label ? { label: document.label } : {}),
         ...(documentSnapshot.revision ? { revision: documentSnapshot.revision } : {}),
         storage: document.token ? 'local-file' : document.cacheable ? 'browser' : 'example',
-        valid: sourceError(documentSnapshot.content, document.filename) === undefined,
+        valid: documentValid(document),
       }
     }
     const inspect = (document: OpenDocument): JsonViewsDocumentInspection => ({
       ...describe(document),
-      diagnostics: documentDiagnostics(document),
+      // Callers may modify what they receive, so each diagnostic is a deep copy.
+      diagnostics: cachedDocumentDiagnostics(document).map((diagnostic) => structuredClone(diagnostic)),
     })
     const refresh = () => setDocuments([...documentsRef.current])
     const reportRead = (analyticsInterface: Exclude<AnalyticsInterface, 'ui'>, method: string, document?: OpenDocument) => {

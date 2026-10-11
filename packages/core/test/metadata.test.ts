@@ -502,3 +502,32 @@ describe('compileJsonViewMetadata', () => {
     expect(compiled.diagnostics).toEqual([])
   })
 })
+
+describe('value validation of missing ancestors', () => {
+  const missing = (diagnostics: { code: string }[]) => diagnostics.filter((item) => item.code === 'required-value-missing')
+  const compile = (schema: Record<string, unknown>) => compileJsonViewMetadata({ other: 1 }, undefined, { metadata: { version: 1, schema } })
+
+  it('lets the first entry reaching a missing collection claim it, even when it is optional', () => {
+    const optionalFirst = compile({ '$.rows[*].a': { type: 'text' }, '$.rows[*].b': { type: 'text', required: true } })
+    expect(missing(optionalFirst.diagnostics)).toEqual([])
+
+    const requiredFirst = compile({ '$.rows[*].b': { type: 'text', required: true }, '$.rows[*].a': { type: 'text' } })
+    expect(missing(requiredFirst.diagnostics)).toEqual([
+      expect.objectContaining({ sourcePath: ['rows'], metadataPath: ['$jsonviews', 'schema', '$.rows[*].b'] }),
+    ])
+  })
+
+  it('reports a missing collection once when several required entries reach it', () => {
+    const compiled = compile({ '$.rows[*].a': { type: 'text', required: true }, '$.rows[*].b': { type: 'text', required: true } })
+    expect(missing(compiled.diagnostics)).toEqual([
+      expect.objectContaining({ sourcePath: ['rows'], metadataPath: ['$jsonviews', 'schema', '$.rows[*].a'] }),
+    ])
+  })
+
+  it('leaves a missing collection to an entry declared on the collection itself, in either order', () => {
+    const before = compile({ '$.rows': { type: 'text' }, '$.rows[*].name': { type: 'text', required: true } })
+    const after = compile({ '$.rows[*].name': { type: 'text', required: true }, '$.rows': { type: 'text' } })
+    expect(missing(before.diagnostics)).toEqual([])
+    expect(missing(after.diagnostics)).toEqual([])
+  })
+})

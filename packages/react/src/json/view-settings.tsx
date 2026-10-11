@@ -30,6 +30,7 @@ import {
   type CompiledJsonViewSchema,
   type CompiledJsonViewView,
   type JsonViewFilterOperator,
+  type JsonViewPath,
   type JsonViewTypeRegistry,
 } from '@script-it/json-views-core'
 
@@ -751,26 +752,36 @@ function isRecordCollectionValue(value: unknown): boolean {
   return isRecord(value) && Object.values(value).every(isRecord)
 }
 
-function discoverViewPaths(root: unknown): JsonViewViewPathOption[] {
-  if (!isRecord(root) && !Array.isArray(root)) return []
-  const options: JsonViewViewPathOption[] = []
-  const visit = (value: unknown, path: Array<string | number>): void => {
-    options.push({
-      path: collectionPath(path),
-      label: path.length === 0 ? (Array.isArray(root) ? 'Data' : 'Root') : path.map((segment) => typeof segment === 'number' ? String(segment + 1) : friendlyLabel(segment)).join(' › '),
-      recordCollection: isRecordCollectionValue(value),
-    })
-    if (Array.isArray(value)) {
-      value.forEach((child, index) => visit(child, [...path, index]))
-      return
+/** The option for one location, as a walk of the whole document would list it:
+ * own properties only, nothing under `$jsonviews`, and the canonical path
+ * spelling. Scalars are options too; they just are not record collections.
+ * Without a path, the root is the option.
+ */
+function resolveViewPathOption(root: unknown, currentPath: string | undefined): JsonViewViewPathOption | undefined {
+  if (!isRecord(root) && !Array.isArray(root)) return undefined
+  const path: Array<string | number> = []
+  let value: unknown = root
+  if (currentPath !== undefined) {
+    let segments: JsonViewPath['segments']
+    try { segments = parseJsonViewPath(currentPath, { root: '$' }).segments } catch { return undefined }
+    for (const segment of segments) {
+      if (segment.kind === 'property') {
+        if (segment.key === '$jsonviews' || !isRecord(value) || !Object.prototype.hasOwnProperty.call(value, segment.key)) return undefined
+        value = value[segment.key]
+        path.push(segment.key)
+      } else if (segment.kind === 'index') {
+        if (!Array.isArray(value) || !Object.prototype.hasOwnProperty.call(value, segment.index)) return undefined
+        value = value[segment.index]
+        path.push(segment.index)
+      } else return undefined
     }
-    if (!isRecord(value)) return
-    Object.entries(value)
-      .filter(([key]) => key !== '$jsonviews')
-      .forEach(([key, child]) => visit(child, [...path, key]))
+    if (collectionPath(path) !== currentPath) return undefined
   }
-  visit(root, [])
-  return options
+  return {
+    path: collectionPath(path),
+    label: path.length === 0 ? (Array.isArray(root) ? 'Data' : 'Root') : path.map((segment) => typeof segment === 'number' ? String(segment + 1) : friendlyLabel(segment)).join(' › '),
+    recordCollection: isRecordCollectionValue(value),
+  }
 }
 
 function collectionFields(
@@ -828,12 +839,11 @@ export function JsonViewAddView({
   const popoverRef = useRef<HTMLElement>(null)
   const portalContainer = useJsonViewsPortalContainer()
   const position = useAnchoredPosition(open, triggerRef, popoverRef, 'bottom', align)
-  const options = useMemo(() => discoverViewPaths(root), [root])
-  const selectedOption = options.find((option) => option.path === currentPath)
-    ?? (currentPath === undefined ? options[0] : undefined)
+  const selectedOption = useMemo(() => resolveViewPathOption(root, currentPath), [currentPath, root])
   const unavailableReason = unavailableReasonOverride
     ?? (selectedOption ? undefined : 'This location is not document data that a view can target.')
-  const fields = useMemo(() => collectionFields(root, selectedOption, schema), [root, schema, selectedOption])
+  // Field discovery reads every record; only the open popover uses it.
+  const fields = useMemo(() => open ? collectionFields(root, selectedOption, schema) : [], [open, root, schema, selectedOption])
   const groupFields = fields.filter((field) => field.kind !== 'array' && field.kind !== 'object')
   const preferredGroup = groupFields.find((field) => field.type === 'select') ?? groupFields[0]
   const reset = () => {

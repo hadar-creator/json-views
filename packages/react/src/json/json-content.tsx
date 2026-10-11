@@ -115,12 +115,16 @@ export function StructuredDataContent(props: StructuredDataContentProps) {
 }
 
 export function JSONContent(props: JSONContentProps) {
-  let adapter = jsonObjectFormat as StructuredDocumentAdapter<unknown>
   // The editable draft is the current document while the source editor is open.
   // Hosts may keep `content` at the last persisted revision until a save finishes,
   // so choosing the adapter from it would incorrectly reject a valid root-shape
   // change (for example, an object replaced with an array).
-  try { adapter = jsonFormatForSource(props.edit?.isEditing ? props.edit.editContent : props.content) as StructuredDocumentAdapter<unknown> } catch { /* Recovery handles invalid JSON. */ }
+  const source = props.edit?.isEditing ? props.edit.editContent : props.content
+  // Choosing the adapter parses the whole document; hosts re-render far more often than the text changes.
+  const adapter = useMemo(() => {
+    try { return jsonFormatForSource(source) as StructuredDocumentAdapter<unknown> } catch { /* Recovery handles invalid JSON. */ }
+    return jsonObjectFormat as StructuredDocumentAdapter<unknown>
+  }, [source])
   return <StructuredDataContent {...props} adapter={adapter} />
 }
 
@@ -137,7 +141,9 @@ function StructuredDataContentSession({
   const { types } = useJsonViewsRegistries()
   const [editorGeneration, setEditorGeneration] = useState(0)
   const [draftRows, setDraftRows] = useState<ValuePath[]>([])
-  const [localSourceVisible, setLocalSourceVisible] = useState(() => presentationState?.activeView ? presentationState.activeView === 'source' : adapter.format !== 'csv' && prefersSource(content, metadata))
+  // A host that controls `sourceVisible` never reads the local flag, so the default-view heuristic can be skipped.
+  const [localSourceVisible, setLocalSourceVisible] = useState(() => sourceVisible === undefined
+    && (presentationState?.activeView ? presentationState.activeView === 'source' : adapter.format !== 'csv' && prefersSource(content, metadata)))
   const [currentViewPaths, setCurrentViewPaths] = useState<readonly ValuePath[]>([[]])
   const rememberSourcePaths = useCallback((path: ValuePath, paths?: readonly ValuePath[]) => {
     setCurrentViewPaths(paths ?? [path])
@@ -315,7 +321,7 @@ function StructuredDataContentSession({
       const views = Array.isArray(base.views) ? [...base.views] : []
       const rawView = views[viewDeclarationIndex]
       if (!isRecord(rawView)) throw new Error('This table view cannot be updated')
-      const existingView = compileJsonViewMetadata(root).views.find((view) => view.declarationIndex === viewDeclarationIndex)
+      const existingView = compileJsonViewMetadata(root, undefined, { validateValues: false }).views.find((view) => view.declarationIndex === viewDeclarationIndex)
       const columns = Array.isArray(rawView.columns) && rawView.columns.length > 0 ? [...rawView.columns]
         : existingView ? projectJsonViewCollection(root, { ...existingView, filter: undefined, sort: [] }).columns.map((column) => ({ label: column.label, path: column.path.source })) : []
       views[viewDeclarationIndex] = { ...rawView, columns: [...columns, { label: typeof descriptor.title === 'string' ? descriptor.title : property, path: schemaPath }] }
@@ -369,7 +375,7 @@ function StructuredDataContentSession({
   const setOptionColor = useCallback(async (schemaPath: string, optionValue: string, color: string) => {
     if (!metadataWritable || !compiled) throw new Error('These annotations cannot be edited')
     const next = withOptionColor(currentMetadata(), schemaPath, optionValue, color)
-    const candidate = compileJsonViewMetadata(parsed.root, types, { metadata: next })
+    const candidate = compileJsonViewMetadata(parsed.root, types, { metadata: next, validateValues: false })
     if (!candidate.schema.some((entry) => entry.declaration === schemaPath)) {
       throw new Error(candidate.diagnostics.find((item) => item.scope === 'schema')?.message ?? 'Invalid option color')
     }
@@ -391,7 +397,7 @@ function StructuredDataContentSession({
       ...(base.schema === undefined && compiled.inference && Object.keys(compiled.inference.schema).length > 0 ? { schema: compiled.inference.schema } : {}),
       views,
     }
-    const candidate = compileJsonViewMetadata(parsed.root, types, { metadata: next })
+    const candidate = compileJsonViewMetadata(parsed.root, types, { metadata: next, validateValues: false })
     if (candidate.views.length !== views.length) throw new Error(candidate.diagnostics.find((item) => item.scope === 'view')?.message ?? 'Invalid view')
     if (persistence === 'session') { await saveSessionMetadata(next); return }
     if (adapter.format !== 'json-object' || persistence !== 'embedded') { await requestConversion('save-view', next); return }
@@ -422,18 +428,19 @@ function StructuredDataContentSession({
     saving={document.saving} dirty={isDirty || document.dirty} invalidSourceError={parsed.error ?? undefined} invalidFormat={parsed.error ? adapter.format === 'csv' ? 'CSV' : 'JSON' : undefined} error={document.error || saveError || (!metadataWritable ? 'View settings need repair before saving.' : undefined)}
     onSave={document.canCommit && metadataWritable && (isRecord(parsed.root) && adapter.format === 'json-object' || onRequestMetadataPersistence) ? saveViewsToSource : undefined} />
   const sourceFormat = adapter.format === 'csv' ? 'CSV' : 'JSON'
+  // Formatting and target ranges are only consumed by the source panel, so they wait until it is shown.
   const formattedSource = useMemo(() => {
-    if (adapter.format === 'csv') return undefined
+    if (adapter.format === 'csv' || !showingSource) return undefined
     try { return formatJsonSource(document.content) } catch { return undefined }
-  }, [adapter.format, document.content])
+  }, [adapter.format, document.content, showingSource])
   const formatSource = !document.canCommit || formattedSource === undefined || formattedSource === document.content.trim()
     ? undefined : () => editSource(formattedSource)
   const sourceControl = <>{showingSource && formatSource && <SourceFormatButton format={sourceFormat} disabled={document.saving} onFormat={formatSource} />}{saveStatus}</>
   const sourceTargetRanges = useMemo(() => {
-    if (adapter.format === 'csv' || currentViewPaths.length === 0 || coversAllDocumentData(parsed.root, currentViewPaths)) return []
+    if (adapter.format === 'csv' || !showingSource || currentViewPaths.length === 0 || coversAllDocumentData(parsed.root, currentViewPaths)) return []
     try { return jsonSourceRangesAtPaths(document.content, currentViewPaths) }
     catch { return [] }
-  }, [adapter.format, currentViewPaths, document.content, parsed.root])
+  }, [adapter.format, currentViewPaths, document.content, parsed.root, showingSource])
   const sourceEditor = (
       <TooltipProvider>
         <SourceEditor

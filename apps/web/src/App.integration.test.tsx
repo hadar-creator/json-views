@@ -272,3 +272,22 @@ it('does not show saving when only switching between views and source', async ()
   expect(container.querySelector('[role="img"][aria-label="Saving…"]')).toBeNull()
   await act(async () => { release() })
 })
+
+it('parses a rewritten document a fixed number of times across the viewer, route, and API', async () => {
+  await mountNamedRoute(documentRouteHash({ file: 'team/tasks.json', view: 'All tasks' }))
+  const parse = vi.spyOn(JSON, 'parse')
+  const parses = (source: string) => parse.mock.calls.filter(([input]) => input === source).length
+
+  const rewritten = JSON.stringify({ ...JSON.parse(routeSource) as object, rows: [{ name: 'Rewritten task', status: 'Ready' }] })
+  await act(async () => { await window.jsonViews!.setSource('tasks.json', rewritten) })
+  // The viewer chooses its adapter, inspects the text, and reads the source
+  // diagnostics; the route lists the views; the API result checks validity
+  // and diagnostics; the host memoizes its parse error. Nothing else may
+  // parse the whole document.
+  expect(parses(rewritten)).toBe(7)
+
+  await act(async () => { await window.jsonViews!.patch('tasks.json', [{ op: 'replace', path: '/rows/0/name', value: 'Patched task' }]) })
+  const patched = window.jsonViews!.source('tasks.json')
+  expect(patched).toContain('Patched task')
+  expect(parses(patched)).toBe(7)
+})

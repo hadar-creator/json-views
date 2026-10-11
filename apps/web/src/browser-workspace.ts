@@ -208,6 +208,16 @@ export function browserDocumentData(document?: CachedBrowserDocument): string | 
   return JSON.stringify({ id, filename, relativePath, content, initialContent, label, metadata })
 }
 
+/** Same verdict as comparing `browserDocumentData` strings, without serializing
+ * two copies of the document text for every comparison. Metadata still compares
+ * by its JSON spelling, so key order matters there as before. */
+export function sameBrowserDocumentData(left?: CachedBrowserDocument, right?: CachedBrowserDocument): boolean {
+  if (!left || !right) return left === right
+  return left.id === right.id && left.filename === right.filename && left.relativePath === right.relativePath
+    && left.content === right.content && left.initialContent === right.initialContent && left.label === right.label
+    && JSON.stringify(left.metadata) === JSON.stringify(right.metadata)
+}
+
 export interface BrowserWorkspaceWriteResult {
   workspace: CachedBrowserWorkspace
   conflicts: string[]
@@ -244,9 +254,9 @@ export function writeBrowserWorkspace(
         const before = prior.get(id)
         const next = local.get(id)
         const saved = remote.get(id)
-        if (browserDocumentData(next) === browserDocumentData(before)) continue
-        if (browserDocumentData(next) === browserDocumentData(saved)) continue
-        if (browserDocumentData(saved) !== browserDocumentData(before) || saved?.revision !== before?.revision) {
+        if (sameBrowserDocumentData(next, before)) continue
+        if (sameBrowserDocumentData(next, saved)) continue
+        if (!sameBrowserDocumentData(saved, before) || saved?.revision !== before?.revision) {
           conflicts.push(id)
           continue
         }

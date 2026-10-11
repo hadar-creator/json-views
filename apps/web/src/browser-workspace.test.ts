@@ -1,6 +1,6 @@
 import { IDBFactory } from 'fake-indexeddb'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
-import { readBrowserWorkspace, subscribeBrowserWorkspace, writeBrowserWorkspace, type CachedBrowserWorkspace } from './browser-workspace.js'
+import { browserDocumentData, readBrowserWorkspace, sameBrowserDocumentData, subscribeBrowserWorkspace, writeBrowserWorkspace, type CachedBrowserDocument, type CachedBrowserWorkspace } from './browser-workspace.js'
 
 const stored: CachedBrowserWorkspace = {
   version: 1,
@@ -194,4 +194,30 @@ it('migrates the legacy shared presentation backup to this tab only', async () =
   expect(sessionStorage.getItem('json-views-browser-presentation-v1')).not.toBeNull()
   sessionStorage.clear()
   expect((await readBrowserWorkspace())?.activeDocumentIndex).toBe(0)
+})
+
+it('compares document data exactly like the serialized form it replaces', () => {
+  const base: CachedBrowserDocument = { id: 'doc', filename: 'doc.json', content: '{"a":1}', initialContent: '{}', label: 'Doc', metadata: { version: 1, views: [] } }
+  const variants: Array<CachedBrowserDocument | undefined> = [
+    undefined,
+    base,
+    { ...base },
+    { ...base, revision: 7, mode: 'source' },
+    { ...base, content: '{"a":2}' },
+    { ...base, initialContent: '{"a":1}' },
+    { ...base, filename: 'other.json' },
+    { ...base, relativePath: 'team/doc.json' },
+    { ...base, relativePath: undefined },
+    { ...base, label: undefined },
+    { ...base, metadata: undefined },
+    { ...base, metadata: { views: [], version: 1 } },
+    { ...base, metadata: { version: 1, views: [], extra: null } },
+    { id: 'doc', filename: 'doc.json', content: '{"a":1}', initialContent: '{}', label: 'Doc', metadata: { version: 1, views: [] }, relativePath: undefined },
+  ]
+  for (const left of variants) {
+    for (const right of variants) {
+      expect(sameBrowserDocumentData(left, right), `${browserDocumentData(left)} vs ${browserDocumentData(right)}`)
+        .toBe(browserDocumentData(left) === browserDocumentData(right))
+    }
+  }
 })

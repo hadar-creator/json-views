@@ -255,10 +255,11 @@ export function JsonViewer({
   }, [compiled.root, currentPath, defaultKey, rawViews])
   const settingsRawView = activeRawView ?? rootDraftRawView
   const settingsDeclarationIndex = declaredView?.declarationIndex ?? rawViews.length
+  // Only the compiled view is needed here, so the per-value validation pass is skipped.
   const settingsView = useMemo(() => {
     if (declaredView) return declaredView
     const candidate = compileJsonViewMetadata(compiled.root, types, {
-      metadata: metadataWithViews(compiled, [...rawViews, rootDraftRawView]),
+      metadata: metadataWithViews(compiled, [...rawViews, rootDraftRawView]), validateValues: false,
     })
     return candidate.views.find((view) => view.declarationIndex === rawViews.length)
   }, [compiled, declaredView, rawViews, rootDraftRawView, types, types.version])
@@ -274,7 +275,7 @@ export function JsonViewer({
     const views = [...rawViews]
     if (declaredView) views[declaredView.declarationIndex] = previewRawView
     else views.push(previewRawView)
-    const candidate = compileJsonViewMetadata(compiled.root, types, { metadata: metadataWithViews(compiled, views) })
+    const candidate = compileJsonViewMetadata(compiled.root, types, { metadata: metadataWithViews(compiled, views), validateValues: false })
     return candidate.views.find((view) => view.declarationIndex === settingsDeclarationIndex)
   }, [compiled, declaredView, previewRawView, rawViews, settingsDeclarationIndex, types, types.version])
   const previewSettings = useCallback((next: Record<string, unknown> | undefined) => {
@@ -319,7 +320,7 @@ export function JsonViewer({
   const persistViews = useCallback(async (views: readonly unknown[], requiredIndex?: number) => {
     if (!editing) throw new Error('This JSON is read-only')
     if (requiredIndex !== undefined) {
-      const candidate = compileJsonViewMetadata(compiled.root, types, { metadata: metadataWithViews(compiled, views) })
+      const candidate = compileJsonViewMetadata(compiled.root, types, { metadata: metadataWithViews(compiled, views), validateValues: false })
       const valid = candidate.views.some((view) => view.declarationIndex === requiredIndex)
       const issue = candidate.diagnostics.find((item) => item.scope === 'view' && item.metadataPath[2] === requiredIndex)
       if (!valid) throw new Error(issue?.message ?? 'The view is not valid for this JSON')

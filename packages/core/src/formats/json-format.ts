@@ -71,60 +71,93 @@ export function jsonFormatForRoot(root: unknown): StructuredDocumentAdapter<Json
   return Array.isArray(root) ? jsonArrayFormat : jsonObjectFormat
 }
 
+// Outside strings, valid JSON only contains these four whitespace characters.
+function isJsonWhitespace(code: number): boolean {
+  return code === 0x20 || code === 0x0a || code === 0x0d || code === 0x09
+}
+
+function isStructural(code: number): boolean {
+  return code === 0x22 || code === 0x7b || code === 0x5b || code === 0x7d || code === 0x5d || code === 0x2c || code === 0x3a
+}
+
 /** Pretty-print JSON without changing numeric spelling, duplicate keys, or string contents. */
 export function formatJsonSource(source: string): string {
   assertJsonDepth(JSON.parse(source))
-  let formatted = ''
-  let depth = 0
-  let escaped = false
-  let inString = false
+  const parts: string[] = []
   const expandedContainers: boolean[] = []
-  const indentation = () => '  '.repeat(depth)
+  const length = source.length
+  let depth = 0
+  let indentation = ''
+  const indent = (next: number) => {
+    depth = next
+    indentation = '  '.repeat(depth)
+  }
 
-  for (let index = 0; index < source.length; index += 1) {
-    const character = source[index]
-    if (inString) {
-      formatted += character
-      if (escaped) escaped = false
-      else if (character === '\\') escaped = true
-      else if (character === '"') inString = false
-      continue
-    }
-    if (/\s/.test(character)) continue
-    if (character === '"') {
-      inString = true
-      formatted += character
-      continue
-    }
-    if (character === '{' || character === '[') {
-      const closingCharacter = character === '{' ? '}' : ']'
-      let nextIndex = index + 1
-      while (nextIndex < source.length && /\s/.test(source[nextIndex])) nextIndex += 1
-      const expanded = source[nextIndex] !== closingCharacter
-      expandedContainers.push(expanded)
-      formatted += character
-      if (expanded) {
-        depth += 1
-        formatted += `\n${indentation()}`
+  let index = 0
+  while (index < length) {
+    const code = source.charCodeAt(index)
+    if (code === 0x22) {
+      // Strings are copied whole, escapes included.
+      let end = index + 1
+      while (end < length) {
+        const inner = source.charCodeAt(end)
+        end += 1
+        if (inner === 0x5c) end += 1
+        else if (inner === 0x22) break
       }
+      parts.push(source.slice(index, end))
+      index = end
       continue
     }
-    if (character === '}' || character === ']') {
+    if (isJsonWhitespace(code)) {
+      index += 1
+      continue
+    }
+    if (code === 0x7b || code === 0x5b) {
+      const closing = code === 0x7b ? 0x7d : 0x5d
+      let nextIndex = index + 1
+      while (nextIndex < length && isJsonWhitespace(source.charCodeAt(nextIndex))) nextIndex += 1
+      const expanded = source.charCodeAt(nextIndex) !== closing
+      expandedContainers.push(expanded)
+      parts.push(source[index])
+      if (expanded) {
+        indent(depth + 1)
+        parts.push(`\n${indentation}`)
+      }
+      index += 1
+      continue
+    }
+    if (code === 0x7d || code === 0x5d) {
       const expanded = expandedContainers.pop() ?? false
       if (expanded) {
-        depth -= 1
-        formatted += `\n${indentation()}`
+        indent(depth - 1)
+        parts.push(`\n${indentation}`)
       }
-      formatted += character
+      parts.push(source[index])
+      index += 1
       continue
     }
-    if (character === ',') {
-      formatted += `,\n${indentation()}`
+    if (code === 0x2c) {
+      parts.push(`,\n${indentation}`)
+      index += 1
       continue
     }
-    formatted += character === ':' ? ': ' : character
+    if (code === 0x3a) {
+      parts.push(': ')
+      index += 1
+      continue
+    }
+    // Numbers and literals are copied as one run.
+    let end = index + 1
+    while (end < length) {
+      const inner = source.charCodeAt(end)
+      if (isStructural(inner) || isJsonWhitespace(inner)) break
+      end += 1
+    }
+    parts.push(source.slice(index, end))
+    index = end
   }
-  return formatted
+  return parts.join('')
 }
 
 export type { ValuePath, ValueReplacement }

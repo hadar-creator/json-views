@@ -78,8 +78,20 @@ export function ProjectedTableView({
   const [editPath, setEditPath] = useState<ValuePath>()
   const [openRowPath, setOpenRowPath] = useState<ValuePath>()
   const [openCell, setOpenCell] = useState<{ fieldLabel: string; path: ValuePath; rowLabel: string }>()
-  const unfilteredProjection = useMemo(() => projectJsonViewCollection(compiled.root, { ...view, filter: undefined }, compiled.schema, types, sourceLiteral), [compiled.root, compiled.schema, view, types, types.version, sourceLiteral])
   const completeProjection = useMemo(() => projectJsonViewCollection(compiled.root, view, compiled.schema, types, sourceLiteral), [compiled.root, compiled.schema, view, types, types.version, sourceLiteral])
+  // Without a filter, the complete projection already is the unfiltered one.
+  const unfilteredProjection = useMemo(() => view.filter
+    ? projectJsonViewCollection(compiled.root, { ...view, filter: undefined }, compiled.schema, types, sourceLiteral)
+    : completeProjection, [compiled.root, compiled.schema, completeProjection, view, types, types.version, sourceLiteral])
+  // The first record with a schema match decides each column's descriptor. This
+  // does not depend on the search query, unlike the rest of the table model.
+  const columnDescriptors = useMemo(() => Object.fromEntries(completeProjection.columns.map((column) => {
+    for (const row of unfilteredProjection.rows) {
+      const schema = schemaForJsonViewPath(compiled.schema, resolveJsonViewRowPath(compiled.root, row, column.path).sourcePath)
+      if (schema) return [column.id, schema.descriptor]
+    }
+    return [column.id, compiled.schema.find((schema) => sameJsonViewPath(schema.path, column.path))?.descriptor]
+  })), [compiled.root, compiled.schema, completeProjection.columns, unfilteredProjection])
   const projected = useMemo(() => {
     const indices = completeProjection.rows.flatMap((row, index) => matchesSearch(row.value, query) ? [index] : [])
     return {
@@ -97,16 +109,8 @@ export function ProjectedTableView({
       fieldOccurrences.set(field, occurrence + 1)
       return [column.id, JSON.stringify([field, occurrence])]
     }))
-    const descriptors = Object.fromEntries(visibleColumns.map((column) => {
-      const descriptor = unfilteredProjection.rows.flatMap((row) => {
-        const path = resolveJsonViewRowPath(compiled.root, row, column.path).sourcePath
-        const schema = schemaForJsonViewPath(compiled.schema, path)
-        return schema ? [schema.descriptor] : []
-      })[0] ?? compiled.schema.find((schema) => sameJsonViewPath(schema.path, column.path))?.descriptor
-      return [column.id, descriptor]
-    }))
     const columnFilterOperators = Object.fromEntries(visibleColumns.map((column) => {
-      const descriptor = descriptors[column.id]
+      const descriptor = columnDescriptors[column.id]
       const defaults = descriptor?.type === 'date' ? DATE_FILTER_OPERATORS : FILTER_OPERATORS
       const declared = descriptor ? types.filterOperators(descriptor) : undefined
       return [column.id, declared ? [
@@ -126,7 +130,7 @@ export function ProjectedTableView({
       ])),
       titleColumn: visibleColumns[0],
     }
-  }, [compiled.root, compiled.schema, completeProjection, projected.records, types, unfilteredProjection])
+  }, [columnDescriptors, completeProjection, projected.records, types, unfilteredProjection])
   const declaredColumnActions = rawView && onSaveView ? {
     activeFilters: view.filter?.rules.flatMap((rule) => {
       const column = tableModel.visibleColumns.find((candidate) => sameJsonViewPath(candidate.path, rule.path))

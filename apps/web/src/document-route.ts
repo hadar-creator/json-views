@@ -42,7 +42,8 @@ export function documentRouteViews(document: OpenDocument): RouteView[] {
   if (cached && cached.content === content && cached.metadata === document.metadata) return cached.views
   const root = documentFormat(document.filename) === 'csv' ? inspectCsvSource(content).root : JSON.parse(content)
   const embedded = documentFormat(document.filename) !== 'csv' && isRecord(root) && Object.hasOwn(root, '$jsonviews')
-  const views = compileJsonViewMetadata(root, exampleTypes, embedded || document.metadata === undefined ? {} : { metadata: document.metadata }).views
+  // Only view ids and names are needed, so the per-value validation pass is skipped.
+  const views = compileJsonViewMetadata(root, exampleTypes, { ...(embedded || document.metadata === undefined ? {} : { metadata: document.metadata }), validateValues: false }).views
     .map(({ id, name }) => ({ id, name }))
   viewCache.set(document.controller, { content, metadata: document.metadata, views })
   return views

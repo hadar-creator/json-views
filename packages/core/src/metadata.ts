@@ -1,6 +1,6 @@
 import { MAX_HTML_VIEW_BYTES } from './html-view-limits.js'
 import { assertJsonDepth } from './json-limits.js'
-import { getValueAtPath, VALUE_PATH_MISSING, type ValuePath } from './json-path.js'
+import { getValueAtPath, VALUE_PATH_MISSING, valuePathKey, type ValuePath } from './json-path.js'
 import { compileSafePattern } from './safe-pattern.js'
 import { defaultTypeRegistry, JSON_VIEW_OPTION_COLORS, type JsonViewOptionColor, type JsonViewTypeRegistry } from './type-registry.js'
 import { compareDateValues, parseDateValue } from './date-type.js'
@@ -498,26 +498,33 @@ function canonicalValue(value: unknown): string {
 }
 
 export function matchesJsonViewPath(path: JsonViewPath, sourcePath: ValuePath): boolean {
-  if (path.root !== '$' || path.segments.length !== sourcePath.length) return false
-  return path.segments.every((segment, index) => {
-    const sourceSegment = sourcePath[index]
-    if (segment.kind === 'wildcard') return true
-    if (segment.kind === 'property') return segment.key === sourceSegment
-    return segment.index === sourceSegment
-  })
+  const segments = path.segments
+  if (path.root !== '$' || segments.length !== sourcePath.length) return false
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index]
+    if (segment.kind === 'wildcard') continue
+    if ((segment.kind === 'property' ? segment.key : segment.index) !== sourcePath[index]) return false
+  }
+  return true
+}
+
+/** More concrete segments win, then longer paths, then the earlier declaration. */
+function outranks(candidate: CompiledJsonViewSchema, current: CompiledJsonViewSchema): boolean {
+  if (candidate.specificity[0] !== current.specificity[0]) return candidate.specificity[0] > current.specificity[0]
+  if (candidate.specificity[1] !== current.specificity[1]) return candidate.specificity[1] > current.specificity[1]
+  return candidate.declarationIndex < current.declarationIndex
 }
 
 export function schemaForJsonViewPath(
   schema: readonly CompiledJsonViewSchema[],
   sourcePath: ValuePath,
 ): CompiledJsonViewSchema | undefined {
-  return schema
-    .filter((entry) => matchesJsonViewPath(entry.path, sourcePath))
-    .sort((left, right) => (
-      right.specificity[0] - left.specificity[0]
-      || right.specificity[1] - left.specificity[1]
-      || left.declarationIndex - right.declarationIndex
-    ))[0]
+  // Keeps the earliest of the best-ranked matches, exactly as a stable sort would.
+  let winner: CompiledJsonViewSchema | undefined
+  for (const entry of schema) {
+    if (matchesJsonViewPath(entry.path, sourcePath) && (!winner || outranks(entry, winner))) winner = entry
+  }
+  return winner
 }
 
 function parseDeclaredPath(
@@ -599,18 +606,17 @@ function compileSchema(
 
 function inferSchemaOptions(root: unknown, schema: readonly CompiledJsonViewSchema[]): void {
   for (const entry of schema) {
-    if (entry.descriptor.type !== 'select' && entry.descriptor.type !== 'multi-select') continue
+    const type = entry.descriptor.type
+    if (type !== 'select' && type !== 'multi-select') continue
     const options = new Set(entry.descriptor.options ?? [])
-    for (const location of expandSchemaLocations(root, entry)) {
-      if (entry.descriptor.type === 'select' && typeof location.value === 'string' && location.value !== '') {
-        options.add(location.value)
-      }
-      if (entry.descriptor.type === 'multi-select' && Array.isArray(location.value)) {
-        location.value.forEach((value) => {
-          if (typeof value === 'string' && value !== '') options.add(value)
+    visitSchemaLocations(root, entry, (value) => {
+      if (type === 'select' && typeof value === 'string' && value !== '') options.add(value)
+      if (type === 'multi-select' && Array.isArray(value)) {
+        value.forEach((item) => {
+          if (typeof item === 'string' && item !== '') options.add(item)
         })
       }
-    }
+    })
     entry.descriptor = { ...entry.descriptor, options: Array.from(options) }
   }
 }
@@ -800,17 +806,21 @@ function validateViewField(
     return
   }
   if (rows.length === 0) return
-  const resolved = rows.map((row) => resolveJsonViewRowPath(root, row, fieldPath))
-  if (resolved.every((item) => item.value === JSON_VIEW_PATH_MISSING)) {
-    diagnostic(
-      diagnostics,
-      'view',
-      code,
-      `Path ${JSON.stringify(fieldPath.source)} does not resolve on any record selected by ${JSON.stringify(viewPath.source)}`,
-      metadataPath,
-      { viewId, sourcePath: resolved[0]?.sourcePath, help: fieldHelp() },
-    )
+  // Only a field missing from every record is reported, so stop at the first record that has it.
+  let first: ResolvedJsonViewPath | undefined
+  for (const row of rows) {
+    const resolved = resolveJsonViewRowPath(root, row, fieldPath)
+    if (resolved.value !== JSON_VIEW_PATH_MISSING) return
+    first ??= resolved
   }
+  diagnostic(
+    diagnostics,
+    'view',
+    code,
+    `Path ${JSON.stringify(fieldPath.source)} does not resolve on any record selected by ${JSON.stringify(viewPath.source)}`,
+    metadataPath,
+    { viewId, sourcePath: first?.sourcePath, help: fieldHelp() },
+  )
 }
 
 function reserveViewId(raw: Record<string, unknown>, declarationIndex: number, usedIds: Set<string>): string {
@@ -979,74 +989,109 @@ function compileViews(
   })
 }
 
-function expandSchemaLocations(
-  root: unknown,
-  entry: CompiledJsonViewSchema,
-): ResolvedJsonViewPath[] {
-  const results: ResolvedJsonViewPath[] = []
-  const visit = (value: unknown, segmentIndex: number, sourcePath: ValuePath): void => {
-    if (segmentIndex === entry.path.segments.length) {
-      results.push({ value, sourcePath })
+/** `path` materializes the concrete location on demand. `complete` is false for a
+ * missing location cut short by a remaining wildcard, which is then shorter than
+ * the entry's path. */
+type SchemaLocationVisitor = (value: unknown, path: () => ValuePath, complete: boolean) => void
+
+/** Visits every location a schema path selects, in document order, without
+ * allocating a path per location. Missing data is visited once at its deepest
+ * concrete prefix.
+ */
+function visitSchemaLocations(root: unknown, entry: CompiledJsonViewSchema, visit: SchemaLocationVisitor): void {
+  const segments = entry.path.segments
+  const stack: Array<string | number> = []
+  let snapshot: ValuePath | undefined
+  const path = (): ValuePath => snapshot ??= stack.slice()
+  const report = (value: unknown, complete: boolean): void => {
+    snapshot = undefined
+    visit(value, path, complete)
+  }
+  const missing = (segmentIndex: number): void => {
+    let pushed = 0
+    for (let index = segmentIndex; index < segments.length; index += 1) {
+      const part = segments[index]
+      if (part.kind === 'wildcard') break
+      stack.push(part.kind === 'property' ? part.key : part.index)
+      pushed += 1
+    }
+    report(JSON_VIEW_PATH_MISSING, stack.length === segments.length)
+    stack.length -= pushed
+  }
+  const descend = (value: unknown, segmentIndex: number): void => {
+    if (segmentIndex === segments.length) {
+      report(value, true)
       return
     }
-    const segment = entry.path.segments[segmentIndex]
-    const missing = (): void => {
-      const remainder = entry.path.segments.slice(segmentIndex)
-      const concrete: Array<string | number> = [...sourcePath]
-      for (const part of remainder) {
-        if (part.kind === 'wildcard') break
-        concrete.push(part.kind === 'property' ? part.key : part.index)
-      }
-      results.push({ value: JSON_VIEW_PATH_MISSING, sourcePath: concrete })
-    }
+    const segment = segments[segmentIndex]
     if (segment.kind === 'property') {
-      if (!isRecord(value)) { missing(); return }
-      if (own(value, segment.key)) visit(value[segment.key], segmentIndex + 1, [...sourcePath, segment.key])
-      else missing()
+      if (!isRecord(value) || !own(value, segment.key)) { missing(segmentIndex); return }
+      stack.push(segment.key)
+      descend(value[segment.key], segmentIndex + 1)
+      stack.pop()
       return
     }
     if (segment.kind === 'index') {
-      if (!Array.isArray(value)) { missing(); return }
-      if (own(value as unknown as Record<string, unknown>, String(segment.index))) visit(value[segment.index], segmentIndex + 1, [...sourcePath, segment.index])
-      else missing()
+      if (!Array.isArray(value) || !own(value as unknown as Record<string, unknown>, String(segment.index))) { missing(segmentIndex); return }
+      stack.push(segment.index)
+      descend(value[segment.index], segmentIndex + 1)
+      stack.pop()
       return
     }
     if (Array.isArray(value)) {
-      value.forEach((child, index) => visit(child, segmentIndex + 1, [...sourcePath, index]))
+      value.forEach((child, index) => {
+        stack.push(index)
+        descend(child, segmentIndex + 1)
+        stack.pop()
+      })
       return
     }
-    if (isRecord(value)) {
-      Object.entries(value).forEach(([key, child]) => visit(child, segmentIndex + 1, [...sourcePath, key]))
-    } else missing()
+    if (!isRecord(value)) { missing(segmentIndex); return }
+    for (const key of Object.keys(value)) {
+      stack.push(key)
+      descend(value[key], segmentIndex + 1)
+      stack.pop()
+    }
   }
-  visit(root, 0, [])
-  return results
+  descend(root, 0)
+}
+
+function underAnyPath(paths: readonly ValuePath[], sourcePath: ValuePath): boolean {
+  return paths.some((path) => path.length <= sourcePath.length && path.every((part, index) => part === sourcePath[index]))
 }
 
 function validateResolvedSchemaValue(
   value: unknown,
   descriptor: JsonViewSchemaDescriptor,
   entry: CompiledJsonViewSchema,
-  sourcePath: ValuePath,
+  path: () => ValuePath,
   diagnostics: JsonViewMetadataDiagnostic[],
   typeRegistry: JsonViewTypeRegistry,
   suppressRequiredPaths: readonly ValuePath[],
 ): void {
-  const details = { declaration: entry.declaration, sourcePath }
+  // Most values are valid, so the path is only materialized for the ones that report.
+  const suppressed = (sourcePath: ValuePath): boolean => suppressRequiredPaths.length > 0 && underAnyPath(suppressRequiredPaths, sourcePath)
   if (value === JSON_VIEW_PATH_MISSING) {
-    if (descriptor.required && !suppressRequiredPaths.some((path) => path.length <= sourcePath.length && path.every((part, index) => part === sourcePath[index]))) {
-      diagnostic(diagnostics, 'value', 'required-value-missing', 'Required value is missing', entry.metadataPath, details)
+    if (!descriptor.required) return
+    const sourcePath = path()
+    if (!suppressed(sourcePath)) {
+      diagnostic(diagnostics, 'value', 'required-value-missing', 'Required value is missing', entry.metadataPath, { declaration: entry.declaration, sourcePath })
     }
     return
   }
   const issue = typeRegistry.validate(value, descriptor)
-  const suppressRequired = suppressRequiredPaths.some((path) => path.length <= sourcePath.length && path.every((part, index) => part === sourcePath[index]))
-  if (issue && !(suppressRequired && issue === 'A value is required')) {
-    diagnostic(diagnostics, 'value', 'invalid-typed-value', issue, entry.metadataPath, details)
-    return
+  if (issue) {
+    const sourcePath = path()
+    if (!(issue === 'A value is required' && suppressed(sourcePath))) {
+      diagnostic(diagnostics, 'value', 'invalid-typed-value', issue, entry.metadataPath, { declaration: entry.declaration, sourcePath })
+      return
+    }
   }
-  for (const warning of typeRegistry.warnings(value, descriptor)) {
-    diagnostic(diagnostics, 'value', 'typed-value-warning', warning, entry.metadataPath, { ...details, severity: 'warning' })
+  const warnings = typeRegistry.warnings(value, descriptor)
+  if (warnings.length === 0) return
+  const sourcePath = path()
+  for (const warning of warnings) {
+    diagnostic(diagnostics, 'value', 'typed-value-warning', warning, entry.metadataPath, { declaration: entry.declaration, sourcePath, severity: 'warning' })
   }
 }
 
@@ -1057,16 +1102,30 @@ function validateSchemaValues(
   typeRegistry: JsonViewTypeRegistry,
   suppressRequiredPaths: readonly ValuePath[],
 ): void {
+  // A complete location has one winner among the entries of its length, so it
+  // can only be claimed away from this entry by an overlapping higher-ranked
+  // entry. Cut-off locations are the only ones several entries can share.
   const visited = new Set<string>()
   for (const entry of schema) {
-    for (const location of expandSchemaLocations(root, entry)) {
-      const winner = schemaForJsonViewPath(schema, location.sourcePath)
-      if (winner && winner !== entry) continue
-      const visitKey = JSON.stringify(location.sourcePath)
-      if (visited.has(visitKey)) continue
-      visited.add(visitKey)
-      validateResolvedSchemaValue(location.value, entry.descriptor, entry, location.sourcePath, diagnostics, typeRegistry, suppressRequiredPaths)
-    }
+    const rivals = schema.filter((other) => other !== entry
+      && other.path.segments.length === entry.path.segments.length
+      && outranks(other, entry) && pathsOverlap(other.path, entry.path))
+    visitSchemaLocations(root, entry, (value, path, complete) => {
+      if (complete) {
+        if (rivals.length > 0) {
+          const sourcePath = path()
+          if (rivals.some((rival) => matchesJsonViewPath(rival.path, sourcePath))) return
+        }
+      } else {
+        const sourcePath = path()
+        const winner = schemaForJsonViewPath(schema, sourcePath)
+        if (winner && winner !== entry) return
+        const visitKey = valuePathKey(sourcePath)
+        if (visited.has(visitKey)) return
+        visited.add(visitKey)
+      }
+      validateResolvedSchemaValue(value, entry.descriptor, entry, path, diagnostics, typeRegistry, suppressRequiredPaths)
+    })
   }
 }
 
@@ -1078,6 +1137,7 @@ function compileMetadataValue(
   inference?: InferredJsonViewMetadata,
   metadataSource: 'embedded' | 'external' | 'inferred' = 'embedded',
   suppressRequiredPaths: readonly ValuePath[] = [],
+  validateValues = true,
 ): CompiledJsonViewMetadata {
   const diagnostics: JsonViewMetadataDiagnostic[] = []
   diagnoseUnknownProperties(metadata, ANNOTATION_PROPERTIES, ['$jsonviews'], diagnostics, 'metadata', 'unknown-annotation-property')
@@ -1092,7 +1152,7 @@ function compileMetadataValue(
   // Inference is a presentation hint, not a user-authored validation contract.
   // A sampled collection can contain later values that do not match the guessed
   // type, and those values must not become upload-time errors.
-  if (metadataSource !== 'inferred') {
+  if (metadataSource !== 'inferred' && validateValues) {
     validateSchemaValues(root, schema, diagnostics, typeRegistry, suppressRequiredPaths)
   }
   return {
@@ -1114,6 +1174,10 @@ export interface CompileJsonViewMetadataOptions {
   metadata?: unknown
   /** Temporarily hides required-value diagnostics below paths for unfinished record drafts. */
   suppressRequiredPaths?: readonly ValuePath[]
+  /** `false` skips checking every document value against the schema, which is
+   * most of the compile time on large documents. The compiled schema, views, and
+   * all other diagnostics are unchanged; value diagnostics are omitted. */
+  validateValues?: boolean
 }
 
 export function compileJsonViewMetadata(
@@ -1123,12 +1187,13 @@ export function compileJsonViewMetadata(
 ): CompiledJsonViewMetadata {
   assertJsonDepth(root)
   assertJsonDepth(options.metadata)
+  const validateValues = options.validateValues !== false
   const inactive = (): CompiledJsonViewMetadata => ({
     root, status: 'none', recognized: false, active: false, schema: [], views: [], diagnostics: [],
   })
   const supplied = (metadata: unknown, metadataSource: 'embedded' | 'external'): CompiledJsonViewMetadata => {
     if (isRecord(metadata) && metadata.version === 1) {
-      return compileMetadataValue(root, metadata, typeRegistry, true, undefined, metadataSource, options.suppressRequiredPaths)
+      return compileMetadataValue(root, metadata, typeRegistry, true, undefined, metadataSource, options.suppressRequiredPaths, validateValues)
     }
     const unsupported = isRecord(metadata) && Number.isInteger(metadata.version) && Number(metadata.version) > 0
     return {
@@ -1150,5 +1215,5 @@ export function compileJsonViewMetadata(
   }
   const inference = inferJsonViewMetadata(root)
   if (Object.keys(inference.schema).length === 0 && inference.views.length === 0) return inactive()
-  return compileMetadataValue(root, inference as unknown as Record<string, unknown>, typeRegistry, false, inference, 'inferred', options.suppressRequiredPaths)
+  return compileMetadataValue(root, inference as unknown as Record<string, unknown>, typeRegistry, false, inference, 'inferred', options.suppressRequiredPaths, validateValues)
 }
