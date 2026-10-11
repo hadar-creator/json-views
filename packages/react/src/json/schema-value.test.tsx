@@ -7,7 +7,7 @@ import { renderComponent, type RenderResult } from '../test/render.js'
 import { TooltipProvider } from '../primitives/tooltip.js'
 import { createDefaultTypeRegistry, validateJsonViewSchemaValue } from '@script-it/json-views-core'
 import { JsonViewSchemaValueCell, JsonViewSchemaValueDisplay } from './schema-value.js'
-import { JsonViewsProvider, createDefaultWidgetRegistry } from '../widget-registry.js'
+import { JsonViewsProvider, createDefaultWidgetRegistry, type JsonViewEditWidgetProps } from '../widget-registry.js'
 import { ValueCell } from '../structured-data/value-cell.js'
 
 let rendered: RenderResult | null = null
@@ -625,4 +625,83 @@ describe('JSON Views schema values', () => {
     expect(focusSpy).toHaveBeenCalledWith({ preventScroll: true })
   })
 
+})
+
+describe('Enter in schema editors', () => {
+  async function typeInto(control: HTMLInputElement | HTMLTextAreaElement, value: string): Promise<void> {
+    const prototype = control instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(prototype, 'value')!.set!.call(control, value)
+      control.dispatchEvent(new Event('input', { bubbles: true }))
+    })
+  }
+
+  async function pressEnter(control: Element, init: KeyboardEventInit = {}): Promise<KeyboardEvent> {
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...init })
+    await act(async () => {
+      control.dispatchEvent(event)
+      await Promise.resolve()
+    })
+    return event
+  }
+
+  it('saves multiline text on Enter and leaves Shift+Enter to break the line', async () => {
+    const onCommit = vi.fn(async () => {})
+    rendered = await renderComponent(
+      <JsonViewSchemaValueCell descriptor={{ type: 'text', multiline: true }} label="Notes" value="First" onOpen={() => undefined} onCommit={onCommit} />,
+    )
+    await click(rendered.container.querySelector('[data-id="atomic-edit-value"]'))
+    const textarea = rendered.container.querySelector('textarea')!
+    await typeInto(textarea, 'First\nSecond')
+
+    expect((await pressEnter(textarea, { shiftKey: true })).defaultPrevented).toBe(false)
+    expect(onCommit).not.toHaveBeenCalled()
+    await pressEnter(textarea)
+    expect(onCommit).toHaveBeenCalledWith('First\nSecond')
+  })
+
+  it('keeps Enter for line breaks in Markdown and saves on Cmd+Enter', async () => {
+    const onCommit = vi.fn(async () => {})
+    rendered = await renderComponent(
+      <JsonViewSchemaValueCell descriptor={{ type: 'markdown' }} label="Body" value="Intro" onOpen={() => undefined} onCommit={onCommit} />,
+    )
+    await click(rendered.container.querySelector('[data-id="atomic-edit-value"]'))
+    const textarea = rendered.container.querySelector('textarea')!
+    await typeInto(textarea, 'Intro\n\nMore')
+
+    expect((await pressEnter(textarea)).defaultPrevented).toBe(false)
+    expect(onCommit).not.toHaveBeenCalled()
+    await pressEnter(textarea, { metaKey: true })
+    expect(onCommit).toHaveBeenCalledWith('Intro\n\nMore')
+  })
+
+  it('leaves Enter to a widget that handles it itself', async () => {
+    const onCommit = vi.fn(async () => {})
+    const CodeEditor = ({ label, onChange, stringValue }: JsonViewEditWidgetProps) => (
+      <input aria-label={`Edit ${label}`} value={stringValue} onChange={(event) => onChange(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault() }} />
+    )
+    rendered = await renderComponent(
+      <JsonViewsProvider widgets={createDefaultWidgetRegistry().register('text', CodeEditor)}>
+        <JsonViewSchemaValueCell descriptor={{ type: 'text' }} label="Snippet" value="a" onOpen={() => undefined} onCommit={onCommit} />
+      </JsonViewsProvider>,
+    )
+    await click(rendered.container.querySelector('[data-id="atomic-edit-value"]'))
+    const input = rendered.container.querySelector<HTMLInputElement>('input[aria-label="Edit Snippet"]')!
+    await typeInto(input, 'b')
+    await pressEnter(input)
+    expect(onCommit).not.toHaveBeenCalled()
+  })
+
+  it('saves a date-time when Enter is pressed in the time field', async () => {
+    const onCommit = vi.fn(async (_value: unknown) => {})
+    rendered = await renderComponent(
+      <JsonViewSchemaValueCell descriptor={{ type: 'date' }} label="Starts" value="2026-09-04T12:30:45.125" onOpen={() => undefined} onCommit={onCommit} />,
+    )
+    await click(rendered.container.querySelector('[data-id="atomic-edit-value"]'))
+    const time = document.querySelector<HTMLInputElement>('input[aria-label="Time"]')!
+    await typeInto(time, '09:15')
+    await pressEnter(time)
+    expect(onCommit).toHaveBeenCalledTimes(1)
+    expect(onCommit.mock.calls[0][0]).toMatch(/^2026-09-04T09:15/)
+  })
 })

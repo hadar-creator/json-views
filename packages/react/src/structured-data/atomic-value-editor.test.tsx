@@ -4,6 +4,8 @@ import { act } from 'react'
 import { afterEach, expect, it, vi } from 'vitest'
 
 import { renderComponent, type RenderResult } from '../test/render.js'
+import { JsonViewsDeviceProvider, type JsonViewsDevice } from '../browser-device.js'
+import type { EnterKeyBehavior } from '../lib/enter-key.js'
 import { AtomicValueEditor, StructuredValueCellFrame } from './atomic-value-editor.js'
 import { StructuredCellFillContext } from './structured-cell-fill-context.js'
 
@@ -13,6 +15,61 @@ afterEach(async () => {
   await rendered?.cleanup()
   rendered = null
   vi.restoreAllMocks()
+})
+
+async function editNotes({ device, enterKey }: { device?: JsonViewsDevice; enterKey?: EnterKeyBehavior } = {}) {
+  const onCommit = vi.fn(async () => {})
+  rendered = await renderComponent(
+    <JsonViewsDeviceProvider device={device}>
+      <AtomicValueEditor enterKey={enterKey} multiline label="Notes" value="First line" onCommit={onCommit}>
+        <div>Rendered notes</div>
+      </AtomicValueEditor>
+    </JsonViewsDeviceProvider>,
+  )
+  await act(async () => { rendered!.container.querySelector<HTMLElement>('[data-id="atomic-edit-value"]')!.click() })
+  const textarea = rendered.container.querySelector('textarea')!
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(textarea, 'First line\nSecond line')
+    textarea.dispatchEvent(new Event('input', { bubbles: true }))
+  })
+  const press = async (init: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...init })
+    await act(async () => { textarea.dispatchEvent(event) })
+    return event
+  }
+  return { onCommit, press }
+}
+
+it('saves a multiline value on Enter and leaves Shift+Enter to break the line', async () => {
+  const { onCommit, press } = await editNotes()
+  const lineBreak = await press({ shiftKey: true })
+  expect(onCommit).not.toHaveBeenCalled()
+  expect(lineBreak.defaultPrevented).toBe(false)
+  const submit = await press()
+  expect(submit.defaultPrevented).toBe(true)
+  expect(onCommit).toHaveBeenCalledWith('First line\nSecond line')
+})
+
+it('keeps Enter for line breaks in long-form text and saves on Cmd+Enter', async () => {
+  const { onCommit, press } = await editNotes({ enterKey: 'newline' })
+  await press()
+  expect(onCommit).not.toHaveBeenCalled()
+  await press({ metaKey: true })
+  expect(onCommit).toHaveBeenCalledWith('First line\nSecond line')
+})
+
+it('keeps Return for line breaks on mobile, where there is no Shift+Enter', async () => {
+  const { onCommit, press } = await editNotes({ device: 'mobile' })
+  await press()
+  expect(onCommit).not.toHaveBeenCalled()
+  await press({ ctrlKey: true })
+  expect(onCommit).toHaveBeenCalledWith('First line\nSecond line')
+})
+
+it('does not save on the Enter that confirms IME composition', async () => {
+  const { onCommit, press } = await editNotes()
+  await press({ isComposing: true })
+  expect(onCommit).not.toHaveBeenCalled()
 })
 
 it('activates cell padding and content once while preserving separate child actions', async () => {

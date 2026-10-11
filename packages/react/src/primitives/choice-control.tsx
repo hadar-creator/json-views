@@ -2,6 +2,7 @@ import * as React from 'react'
 import { Check, ChevronDown, Palette } from 'lucide-react'
 
 import { cn } from '../lib/cn.js'
+import { isComposing } from '../lib/enter-key.js'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -126,7 +127,7 @@ export const ChoiceControl = React.forwardRef<HTMLDivElement, ChoiceControlProps
     }
 
     const handleQueryKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter' && canCreate) {
+      if (event.key === 'Enter' && canCreate && !isComposing(event)) {
         event.preventDefault()
         createOption()
       }

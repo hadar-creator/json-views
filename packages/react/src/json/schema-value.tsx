@@ -2,6 +2,7 @@ import { useCallback, useContext, useEffect, useRef, useState, type ReactNode } 
 import { AlertTriangle, Check, ExternalLink } from 'lucide-react'
 
 import { cn } from '../lib/cn.js'
+import { submitsOnEnter, useEnterKeyBehavior } from '../lib/enter-key.js'
 import { OptionPill, optionColorsForValues } from '../primitives/option-pill.js'
 import { EditValueAction, StructuredValueCellFrame } from '../structured-data/atomic-value-editor.js'
 import { StructuredCellFillContext } from '../structured-data/structured-cell-fill-context.js'
@@ -152,6 +153,7 @@ export function SchemaEditor({
   const baseChanged = useEditBaseChanged()
   const fillCell = useContext(StructuredCellFillContext)
   const format = descriptor.type
+  const enterKey = useEnterKeyBehavior(widgets.getDefinition(format)?.enterKey)
   const stringDraft = typeof draft === 'string' || typeof draft === 'number' || typeof draft === 'boolean'
     ? String(draft)
     : Array.isArray(draft) ? JSON.stringify(draft) : ''
@@ -255,9 +257,14 @@ export function SchemaEditor({
       )}
       aria-label={`Edit ${label}`}
       onKeyDown={(event) => {
-        if (event.key !== 'Enter' || event.target instanceof HTMLButtonElement) return
-        const textarea = event.target instanceof HTMLTextAreaElement
-        if (textarea && !event.metaKey && !event.ctrlKey) return
+        // React delivers keys from a widget's portaled popup (a date picker,
+        // a choice menu) here too; that popup owns them. A widget that
+        // handled Enter itself, such as a code editor, keeps it.
+        const target = event.target
+        if (event.defaultPrevented || !(target instanceof Element) || !event.currentTarget.contains(target)) return
+        if (target instanceof HTMLButtonElement) return
+        const multiline = target instanceof HTMLTextAreaElement || (target instanceof HTMLElement && target.isContentEditable)
+        if (!submitsOnEnter(event, { multiline, enterKey })) return
         event.preventDefault()
         void commit()
       }}

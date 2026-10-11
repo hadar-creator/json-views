@@ -4,6 +4,7 @@ import { act } from 'react'
 import { expect, it, vi } from 'vitest'
 import { renderComponent } from '../../test/render.js'
 import { EditBaseContext } from '../../structured-data/edit-base.js'
+import { JsonViewsDeviceProvider, type JsonViewsDevice } from '../../browser-device.js'
 import { NativeHtmlControl } from './native-control.js'
 import type { JsonViewJsonEditing } from '../view-types.js'
 it('commits typed numeric values once and refuses stale draft paths', async () => {
@@ -41,5 +42,41 @@ it('keeps an unrelated control enabled while another HTML control saves', async 
     expect(second.disabled).toBe(false)
     await act(async () => { finishSave() })
     expect(first.disabled).toBe(false)
+  } finally { await rendered.cleanup() }
+})
+
+async function editTextarea(device?: JsonViewsDevice) {
+  const replace = vi.fn(async () => {})
+  const editing = { replace, saving: false } as unknown as JsonViewJsonEditing
+  const rendered = await renderComponent(<JsonViewsDeviceProvider device={device}><EditBaseContext.Provider value="one">
+    <NativeHtmlControl tag="textarea" props={{}} path={['notes']} value="First" editing={editing} report={vi.fn()} />
+  </EditBaseContext.Provider></JsonViewsDeviceProvider>)
+  const textarea = rendered.container.querySelector('textarea')!
+  await act(async () => { textarea.focus(); Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!.call(textarea, 'First\nSecond'); textarea.dispatchEvent(new Event('input', { bubbles: true })) })
+  const press = async (init: KeyboardEventInit = {}) => {
+    const event = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true, ...init })
+    await act(async () => { textarea.dispatchEvent(event) })
+    return event
+  }
+  return { rendered, replace, press }
+}
+
+it('saves a bound textarea on Enter and leaves Shift+Enter to break the line', async () => {
+  const { rendered, replace, press } = await editTextarea()
+  try {
+    expect((await press({ shiftKey: true })).defaultPrevented).toBe(false)
+    expect(replace).not.toHaveBeenCalled()
+    await press()
+    expect(replace).toHaveBeenCalledWith(['notes'], 'First\nSecond')
+  } finally { await rendered.cleanup() }
+})
+
+it('keeps Return for line breaks in a bound textarea on mobile', async () => {
+  const { rendered, replace, press } = await editTextarea('mobile')
+  try {
+    await press()
+    expect(replace).not.toHaveBeenCalled()
+    await press({ ctrlKey: true })
+    expect(replace).toHaveBeenCalledWith(['notes'], 'First\nSecond')
   } finally { await rendered.cleanup() }
 })
