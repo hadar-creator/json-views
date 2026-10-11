@@ -211,7 +211,7 @@ interface DerivedDocumentState {
   metadata: unknown
   filename: string
   valid?: boolean
-  diagnostics?: JsonViewsDiagnostic[]
+  diagnostics?: readonly JsonViewsDiagnostic[]
 }
 const derivedDocumentState = new WeakMap<OpenDocument['controller'], DerivedDocumentState>()
 
@@ -230,8 +230,8 @@ function documentValid(document: OpenDocument): boolean {
   return state.valid
 }
 
-/** Shared with later reads: clone before handing these to an API caller. */
-function cachedDocumentDiagnostics(document: OpenDocument): JsonViewsDiagnostic[] {
+/** Shared with later reads. Read-only, so it can't be changed or handed to a caller without a copy. */
+function cachedDocumentDiagnostics(document: OpenDocument): readonly JsonViewsDiagnostic[] {
   const state = derivedState(document)
   state.diagnostics ??= documentDiagnostics(document)
   return state.diagnostics
@@ -907,8 +907,8 @@ export function App() {
     }
     const inspect = (document: OpenDocument): JsonViewsDocumentInspection => ({
       ...describe(document),
-      // Callers may modify what they receive, so they get a deep copy of the cache.
-      diagnostics: structuredClone(cachedDocumentDiagnostics(document)),
+      // Callers may modify what they receive, so each diagnostic is a deep copy.
+      diagnostics: cachedDocumentDiagnostics(document).map((diagnostic) => structuredClone(diagnostic)),
     })
     const refresh = () => setDocuments([...documentsRef.current])
     const reportRead = (analyticsInterface: Exclude<AnalyticsInterface, 'ui'>, method: string, document?: OpenDocument) => {

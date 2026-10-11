@@ -700,11 +700,15 @@ describe('document host', () => {
     })
     expect(window.jsonViews!.diagnostics(createdId)).toMatchObject(writeResult as object)
     // Callers own what they receive: modifying it must not change later reads.
-    const received = window.jsonViews!.diagnostics(createdId).diagnostics[0] as unknown as { message: string; sourcePath: Array<string | number>; help: { fix: string } }
-    received.message = 'changed'
-    received.sourcePath[0] = 'other'
-    received.help.fix = 'changed'
-    expect(window.jsonViews!.diagnostics(createdId).diagnostics[0]).toMatchObject({
+    const received = window.jsonViews!.diagnostics(createdId).diagnostics
+    const first = received[0] as unknown as { message: string; sourcePath: Array<string | number>; help: { fix: string } }
+    first.message = 'changed'
+    first.sourcePath[0] = 'other'
+    first.help.fix = 'changed'
+    received.length = 0
+    const reread = window.jsonViews!.diagnostics(createdId).diagnostics
+    expect(reread).toHaveLength(1)
+    expect(reread[0]).toMatchObject({
       message: 'Value must be true or false',
       sourcePath: ['exact'],
       help: { fix: expect.stringContaining('Set') },
