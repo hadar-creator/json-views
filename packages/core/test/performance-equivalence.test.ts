@@ -121,9 +121,13 @@ describe('inspectJsonSource cache', () => {
     expect(second.value).not.toBe(first.value)
     expect(second.diagnostics).not.toBe(first.diagnostics)
     expect(second.diagnostics[0]).not.toBe(first.diagnostics[0])
-    first.diagnostics.push(first.diagnostics[0])
+    expect(second.diagnostics[0].sourcePath).not.toBe(first.diagnostics[0].sourcePath)
+    expect(second.diagnostics[0].help).not.toBe(first.diagnostics[0].help)
+    ;(first.diagnostics[0].sourcePath as Array<string | number>)[0] = 'other'
     ;(first.diagnostics[0] as { code: string }).code = 'changed'
-    expect(inspectJsonSource(source)).toEqual(second)
+    first.diagnostics.push(first.diagnostics[0])
+    // Compare with independently built results: earlier results may share whatever was corrupted.
+    expect(inspectJsonSource(source)).toEqual(legacyInspectJsonSource(source))
   })
 
   it('never serves one text from another text of the same length', () => {

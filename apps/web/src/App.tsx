@@ -230,10 +230,11 @@ function documentValid(document: OpenDocument): boolean {
   return state.valid
 }
 
+/** Shared with later reads: clone before handing these to an API caller. */
 function cachedDocumentDiagnostics(document: OpenDocument): JsonViewsDiagnostic[] {
   const state = derivedState(document)
   state.diagnostics ??= documentDiagnostics(document)
-  return [...state.diagnostics]
+  return state.diagnostics
 }
 
 function documentAnalyticsProperties(document: OpenDocument, analyticsInterface: AnalyticsInterface) {
@@ -906,7 +907,8 @@ export function App() {
     }
     const inspect = (document: OpenDocument): JsonViewsDocumentInspection => ({
       ...describe(document),
-      diagnostics: cachedDocumentDiagnostics(document),
+      // Callers may modify what they receive, so they get a deep copy of the cache.
+      diagnostics: structuredClone(cachedDocumentDiagnostics(document)),
     })
     const refresh = () => setDocuments([...documentsRef.current])
     const reportRead = (analyticsInterface: Exclude<AnalyticsInterface, 'ui'>, method: string, document?: OpenDocument) => {

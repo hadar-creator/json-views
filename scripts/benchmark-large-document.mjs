@@ -182,7 +182,8 @@ const paths = firstView && Array.isArray(firstView.value) && firstView.value.len
 const editPath = paths[Math.floor(paths.length / 2)]
 measure(`jsonSourceRangesAtPaths (${paths.length} paths)`, () => core.jsonSourceRangesAtPaths(source, paths))
 const replaced = measure('replaceJsonValueInSource (one value)', () => core.replaceJsonValueInSource(source, editPath, { replaced: true }))
-const pointer = '/' + editPath.map((segment) => String(segment).replace(/~/g, '~0').replace(/\//g, '~1')).join('/')
+// The root is the empty pointer; '/' would address a property named ''.
+const pointer = editPath.length === 0 ? '' : '/' + editPath.map((segment) => String(segment).replace(/~/g, '~0').replace(/\//g, '~1')).join('/')
 const patched = measure('applyJsonPatchInSource (one replace op)', () => core.applyJsonPatchInSource(source, [{ op: 'replace', path: pointer, value: { patched: true } }]))
 const formatted = measure('formatJsonSource', () => core.formatJsonSource(source))
 const prefers = measure('prefersSource', () => core.prefersSource(source))

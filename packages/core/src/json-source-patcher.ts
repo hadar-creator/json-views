@@ -367,11 +367,11 @@ export function inspectJsonSource(source: string): { value: unknown; diagnostics
   const value: unknown = JSON.parse(source)
   // Hosts inspect one text several times per change. The scan is the expensive
   // part, so its result is kept for the most recent source; callers still get
-  // their own value and diagnostic objects.
+  // their own value, diagnostic objects, and paths.
   const cached = lastInspection !== undefined && lastInspection.source === source ? lastInspection.diagnostics : undefined
   const diagnostics = cached ?? inspectSourceDiagnostics(source)
   if (!cached) lastInspection = { source, diagnostics }
-  return { value, diagnostics: diagnostics.map((item) => ({ ...item, help: sourceDiagnosticHelp(item.code) })) }
+  return { value, diagnostics: diagnostics.map((item) => ({ ...item, sourcePath: [...item.sourcePath], help: sourceDiagnosticHelp(item.code) })) }
 }
 
 /** Replaces one existing JSON value while preserving every unrelated source byte. */
