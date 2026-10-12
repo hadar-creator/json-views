@@ -131,6 +131,21 @@
   height: 1px;
 }
 
+/* Hosts tune the limit with the public token, per container or breakpoint;
+   `tableCells.maxHeight` sets it on one table. Read directly rather than
+   through a root alias, so an override set anywhere above the cell applies. */
+.tabular-cell-content[data-clamped] {
+  max-height: var(--json-views-table-cell-max-height, 9rem);
+  overflow: hidden;
+}
+
+/* A revealed cell shows its whole value, including single-line text that
+   would otherwise be cut at the column edge. */
+.tabular-data-cell[data-cell-revealed] [data-id="structured-value-cell"] :is(.truncate, .whitespace-nowrap) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .tabular-selection-checkbox {
   /* Keep the icon slot focusable and tappable even before selection starts. */
   opacity: 0;
@@ -282,7 +297,7 @@
   .tabular-data-table [data-id="atomic-edit-value"] { min-height: 44px; font-size: 14px; }
   .tabular-data-table [data-id="tabular-column-header"] button:not([role="checkbox"]) { min-height: 48px; font-size: 13px; }
   .tabular-data-table [data-pinned="true"] [data-id="atomic-edit-value"] > span { white-space: normal; }
-  .tabular-data-table [data-pinned="true"] [data-id="atomic-edit-value"] :is(.truncate, .whitespace-nowrap) { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .tabular-data-table [data-pinned="true"]:not([data-cell-revealed]) [data-id="atomic-edit-value"] :is(.truncate, .whitespace-nowrap) { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .tabular-selection-checkbox { opacity: 1; }
   .tabular-selection-icon { opacity: 0; pointer-events: none; }
   .tabular-row-icon:has(.tabular-selection-checkbox), [data-id="tabular-select-all-slot"] { width: 16px; height: 44px; }

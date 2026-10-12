@@ -38,7 +38,10 @@ export function TextareaWidget({
     if (!autoSize || !textareaRef.current) return
     const textarea = textareaRef.current
     textarea.style.height = 'auto'
-    textarea.style.height = `${Math.max(minHeight ?? 0, textarea.scrollHeight)}px`
+    // A border-box height also holds the borders `scrollHeight` leaves out;
+    // without them the last pixels overflow and a scrollbar appears.
+    const borders = textarea.offsetHeight - textarea.clientHeight
+    textarea.style.height = `${Math.max(minHeight ?? 0, textarea.scrollHeight + borders)}px`
     if (!readOnly) textarea.focus({ preventScroll: true })
   }, [autoSize, minHeight, readOnly, value])
 

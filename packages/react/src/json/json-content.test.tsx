@@ -1225,6 +1225,33 @@ describe('JSON file view', () => {
     expect(rendered.container.querySelector('[aria-label="Open file_onboarding_notes"]')).not.toBeNull()
   })
 
+  it('applies host table cell options to declared and general tables', async () => {
+    giveVirtualTableAViewport()
+    const content = JSON.stringify({
+      rows: [{ name: 'Ada', notes: 'First line\nSecond line' }, { name: 'Grace', notes: 'Short' }],
+      $jsonviews: { version: 1, views: [{
+        id: 'people', name: 'People', path: '$.rows',
+        columns: [
+          { label: 'Name', path: '$.rows[*].name' },
+          { label: 'Notes', path: '$.rows[*].notes' },
+        ],
+      }] },
+    })
+    rendered = await renderComponent(<JSONContent content={content} />)
+    expect(rendered.container.querySelector('tbody [data-id="tabular-cell-content"]')?.hasAttribute('data-clamped')).toBe(true)
+    await rendered.cleanup()
+
+    rendered = await renderComponent(<JSONContent content={content} tableCells={{ overflow: 'grow' }} />)
+    expect(rendered.container.querySelector('tbody [data-id="tabular-cell-content"]')).not.toBeNull()
+    expect(rendered.container.querySelector('tbody [data-clamped]')).toBeNull()
+
+    await click(rendered.container.querySelector('[data-id="jsonView-json-tab-root"]'))
+    await click(nestedValueForKey(rendered.container, 'rows'))
+    expect(headerTexts(rendered.container)).toEqual(['name', 'notes'])
+    expect(rendered.container.querySelector('tbody [data-id="tabular-cell-content"]')).not.toBeNull()
+    expect(rendered.container.querySelector('tbody [data-clamped]')).toBeNull()
+  })
+
   it('keeps a numeric id as the exact record title', async () => {
     giveVirtualTableAViewport()
     rendered = await renderComponent(<EditableJsonHarness content={'[{"id":9007199254740993,"count":1},{"id":2,"count":2},{"id":3,"count":3}]'} />)
