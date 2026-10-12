@@ -14,6 +14,8 @@ concurrency:
 
 jobs:
   publish:
+    # npm trusts only runs in this environment, which only main may deploy to.
+    environment: npm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
