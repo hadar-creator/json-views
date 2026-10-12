@@ -49,7 +49,7 @@ export function createAnalyticsClient({ dataPlaneUrl, enabled = isAnalyticsEnabl
             app: {
               name: 'JSON Views',
               namespace: 'com.scriptit.json-views.web',
-              version: import.meta.env.VITE_APP_VERSION || '0.1.0-beta.1',
+              version: import.meta.env.VITE_APP_VERSION || '0.0.0-managed',
             },
           },
           properties: {

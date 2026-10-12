@@ -1,6 +1,6 @@
 {
   "name": "json-views-workspace",
-  "version": "0.1.0-beta.1",
+  "version": "0.0.0-managed",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -15,7 +15,7 @@
     "dev": "npm run build -w @script-it/json-views-core && npm run build -w @script-it/json-views-react && npm run dev -w @script-it/json-views-web",
     "build": "npm run build -w @script-it/json-views-core && npm run build -w @script-it/json-views-react && npm run build -w @script-it/json-views-web && npm run build -w @script-it/json-views && node scripts/prepare-notices.mjs",
     "check": "npm run check:architecture && npm run build -w @script-it/json-views-core && npm run check -w @script-it/json-views-core && npm run build -w @script-it/json-views-react && npm run check -w @script-it/json-views-react && npm run check -w @script-it/json-views-web",
-    "test": "npm run build -w @script-it/json-views-core && npm test -w @script-it/json-views-core && npm run build -w @script-it/json-views-react && node --test scripts/styles.test.mjs && npm test -w @script-it/json-views-react && npm test -w @script-it/json-views-web && npm test -w @script-it/json-views",
+    "test": "npm run build -w @script-it/json-views-core && npm test -w @script-it/json-views-core && npm run build -w @script-it/json-views-react && node --test scripts/styles.test.mjs scripts/release.test.mjs && npm test -w @script-it/json-views-react && npm test -w @script-it/json-views-web && npm test -w @script-it/json-views",
     "test:packages": "node scripts/test-packages.mjs",
     "check:release": "npm test && npm run check && npm run build && npm run test:packages",
     "check:architecture": "node scripts/check-architecture.mjs"
