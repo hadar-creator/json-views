@@ -1,6 +1,6 @@
 {
   "name": "@script-it/json-views-core",
-  "version": "0.1.0-beta.1",
+  "version": "0.0.0-managed",
   "description": "JSON Views metadata, path, validation, and source-preserving editing core",
   "license": "MIT",
   "type": "module",

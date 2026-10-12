@@ -1,0 +1,39 @@
+name: Publish packages
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    # npm trusts only runs in this environment, which only main may deploy to.
+    environment: npm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm ci
+      - run: node scripts/version.mjs --stamp
+      - run: npm test
+      - run: npm run check
+      - run: npm run build
+      - run: npm run test:packages
+        env:
+          JSON_VIEWS_CONSUMER_REACT_MAJOR: 18
+      - run: npm run test:packages
+        env:
+          JSON_VIEWS_CONSUMER_REACT_MAJOR: 19
+      - run: node scripts/publish-packages.mjs

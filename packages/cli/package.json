@@ -1,6 +1,6 @@
 {
   "name": "@script-it/json-views",
-  "version": "0.1.0-beta.1",
+  "version": "0.0.0-managed",
   "description": "Open and edit a local JSON file in a browser",
   "type": "module",
   "bin": {
