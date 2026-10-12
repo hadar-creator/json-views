@@ -22,6 +22,8 @@ const REGISTRY = 'https://registry.npmjs.org'
 const MINIMUM_NPM = '11.5.1'
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+// npm.cmd is a command script, which Windows runs only through a shell.
+const shell = process.platform === 'win32'
 
 function parse(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/.exec(version)
@@ -66,7 +68,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     throw new Error(`Stamp one release version first (node scripts/version.mjs --stamp); manifests declare ${[...versions].join(', ')}`)
   }
   if (!dryRun) {
-    const installed = execFileSync(npm, ['--version'], { encoding: 'utf8' }).trim()
+    const installed = execFileSync(npm, ['--version'], { encoding: 'utf8', shell }).trim()
     if (ordersAfter(MINIMUM_NPM, installed)) throw new Error(`Trusted publishing needs npm ${MINIMUM_NPM} or later, found ${installed}`)
   }
   for (const { workspace, name } of packages) {
@@ -76,6 +78,6 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       continue
     }
     console.log(`Publishing ${name}@${version}${dryRun ? ' (dry run)' : ''}…`)
-    execFileSync(npm, ['publish', '--ignore-scripts', ...(dryRun ? ['--dry-run'] : [])], { cwd: path.join(root, workspace), stdio: 'inherit' })
+    execFileSync(npm, ['publish', '--ignore-scripts', ...(dryRun ? ['--dry-run'] : [])], { cwd: path.join(root, workspace), stdio: 'inherit', shell })
   }
 }

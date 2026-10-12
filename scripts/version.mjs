@@ -3,11 +3,14 @@
 //
 // Nobody edits a version number: every merge to main publishes the packages,
 // so the number comes from the commit. The shape is `YYYY.M.<commit count>`,
-// e.g. `2026.10.24`: the UTC year and month of the commit's committer date and
-// `git rev-list --count` on main, which grows with every merge. The commit
-// date, not the build date, keeps the version a function of the commit, so a
-// re-run publish derives the same number. npm ignores semver build metadata, so
-// the commit is identified by the `gitHead` and provenance npm records instead.
+// e.g. `2026.10.24`: the UTC year and month of the newest committer date in the
+// commit's history and `git rev-list --count` on main, which grows with every
+// merge. Both come from the history alone, not the build date, so a re-run
+// publish derives the same number. The newest date rather than the commit's
+// own keeps the month from moving back when a commit carries an older date
+// than its ancestors, such as a fast-forwarded branch commit. npm ignores
+// semver build metadata, so the commit is identified by the `gitHead` and
+// provenance npm records instead.
 //
 // The committed manifests carry the placeholder `0.0.0-managed`, for the
 // workspaces and for their dependencies on each other; npm workspaces link the
@@ -42,8 +45,8 @@ export function readGitVersion(cwd = root, ref = 'HEAD') {
     throw new Error(`${cwd} is a shallow clone; the commit count needs full history (checkout with fetch-depth: 0)`)
   }
   const count = Number.parseInt(git(['rev-list', '--count', ref], cwd), 10)
-  const date = new Date(Number.parseInt(git(['show', '-s', '--format=%ct', ref], cwd), 10) * 1000)
-  return formatVersion({ date, count })
+  const newest = git(['log', '--format=%ct', ref], cwd).split('\n').reduce((latest, seconds) => Math.max(latest, Number(seconds)), 0)
+  return formatVersion({ date: new Date(newest * 1000), count })
 }
 
 export function readManifests(directory = root) {

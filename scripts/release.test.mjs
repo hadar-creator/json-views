@@ -14,24 +14,21 @@ test('versions are the UTC year and month of the commit and the commit count', (
   assert.throws(() => formatVersion({ date: new Date(), count: 0 }), /positive integer/)
 })
 
-test('the version derives from the commit, not the clock', () => {
+test('the version derives from the history, not the clock, and never moves back', () => {
   const repository = mkdtempSync(path.join(tmpdir(), 'json-views-version-'))
   try {
-    const git = (...args) => execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', ...args], {
+    const env = { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' }
+    const commit = (message, date) => execFileSync('git', ['-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '-q', '--allow-empty', '-m', message], {
       cwd: repository,
-      env: {
-        ...process.env,
-        GIT_CONFIG_GLOBAL: '/dev/null',
-        GIT_CONFIG_NOSYSTEM: '1',
-        GIT_AUTHOR_DATE: '2026-09-30T23:00:00-02:00',
-        GIT_COMMITTER_DATE: '2026-09-30T23:00:00-02:00',
-      },
+      env: { ...env, GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date },
     })
-    git('init', '-q')
-    git('commit', '-q', '--allow-empty', '-m', 'first')
-    git('commit', '-q', '--allow-empty', '-m', 'second')
+    execFileSync('git', ['init', '-q'], { cwd: repository, env })
+    commit('first', '2026-09-30T23:00:00-02:00')
+    commit('second', '2026-09-30T23:00:00-02:00')
     assert.equal(readGitVersion(repository), '2026.10.2')
     assert.equal(readGitVersion(repository, 'HEAD~1'), '2026.10.1')
+    commit('backdated', '2026-08-15T12:00:00Z')
+    assert.equal(readGitVersion(repository), '2026.10.3')
   } finally {
     rmSync(repository, { recursive: true, force: true })
   }
