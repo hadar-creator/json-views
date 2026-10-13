@@ -3,7 +3,7 @@ import { useJsonSourceLiterals } from './source-literals.js'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useJsonViewsRegistries } from '../widget-registry.js'
 import type { UiSize } from '../lib/ui-size.js'
-import { AtomicValueEditor } from '../structured-data/atomic-value-editor.js'
+import { AtomicValueEditor, EditValueAction, StructuredValueCellFrame } from '../structured-data/atomic-value-editor.js'
 import { isEditableAtomicValue } from '../structured-data/atomic-value.js'
 import { TabularObjectArrayView, ValueCell, ValueCellContent } from '../tabular-data-view.js'
 import { type ValuePath } from '@script-it/json-views-core'
@@ -325,9 +325,26 @@ export function ProjectedTableView({
         const schema = schemaForJsonViewPath(compiled.schema, resolved.sourcePath)
         const descriptor = schema?.descriptor
         const coloredDescriptor = descriptor && withColumnOptionColors(descriptor, columnFilterValues[column] ?? [value], visibleColumns.findIndex((candidate) => candidate.id === column))
-        if (isLongText(value, descriptor)) return (
-          <button type="button" className="block h-full w-full min-w-0 truncate px-1.5 py-1 text-left hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring" aria-label={`Open ${displayColumn.label} in record`} onClick={() => { setEditPath(resolved.sourcePath); setOpenRowPath(row.sourcePath) }}>{value || '—'}</button>
-        )
+        if (isLongText(value, descriptor)) {
+          const openRecordEditor = () => { setEditPath(resolved.sourcePath); setOpenRowPath(row.sourcePath) }
+          // Render before applying the plain-text shortcut. A group preserves
+          // native link interactions without nesting links inside a button.
+          if (renderMarkdown && (descriptor?.type === 'markdown' || descriptor?.type === 'body')) return (
+            <StructuredValueCellFrame
+              activationLabel={`Open ${displayColumn.label} in record`}
+              activationRole="group"
+              onActivate={openRecordEditor}
+              actions={editing && editing.canReplace?.(resolved.sourcePath) !== false
+                ? <EditValueAction label={displayColumn.label} onClick={openRecordEditor} />
+                : undefined}
+            >
+              <div className="min-w-0 flex-1 break-words pr-2">
+                <JsonViewSchemaValueDisplay sourcePath={resolved.sourcePath} descriptor={descriptor} value={value} onOpen={open} renderMarkdown={renderMarkdown} />
+              </div>
+            </StructuredValueCellFrame>
+          )
+          return <button type="button" className="block h-full w-full min-w-0 truncate px-1.5 py-1 text-left hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring" aria-label={`Open ${displayColumn.label} in record`} onClick={openRecordEditor}>{value || '—'}</button>
+        }
         if (coloredDescriptor) {
           return (
             <JsonViewSchemaValueCell
