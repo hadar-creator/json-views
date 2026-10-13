@@ -3064,6 +3064,55 @@ describe('JSON file view', () => {
     expect(JSON.parse(rendered.container.querySelector('[data-id="edit-saved"]')?.textContent ?? '{}').leads[0].notes).toBe('Updated notes')
   })
 
+  it.each(['markdown', 'body', 'inferred'])('renders %s table links without opening the record, and preserves Markdown for editing', async (type) => {
+    giveVirtualTableAViewport()
+    const notes = '[Primary evidence](https://www.0labs.ai/) · **Research**'
+    const onSave = vi.fn(async () => {})
+    const renderMarkdown = vi.fn((_text: string) => <p><a href="https://www.0labs.ai/">Primary evidence</a> · <strong>Research</strong></p>)
+    rendered = await renderComponent(<JSONContent content={JSON.stringify({
+      leads: [{ name: '0Labs', notes }, { name: 'Another organization', notes: '' }],
+      ...(type === 'inferred' ? {} : { $jsonviews: { version: 1,
+        schema: { '$.leads[*].notes': { type } },
+        views: [{ id: 'leads', name: 'Leads', path: '$.leads' }] } }),
+    })} onSave={onSave} renderMarkdown={renderMarkdown} />)
+
+    const cell = rendered.container.querySelector('tbody a')?.closest('td')
+    const link = cell?.querySelector('a') ?? null
+    expect(renderMarkdown).toHaveBeenCalledWith(notes)
+    expect(link?.getAttribute('href')).toBe('https://www.0labs.ai/')
+    expect(link?.closest('button, [role="button"]')).toBeNull()
+    expect(cell?.querySelector('strong')?.textContent).toBe('Research')
+    expect(cell?.textContent).not.toContain('[Primary evidence]')
+    link?.addEventListener('click', (event) => event.preventDefault())
+    await click(link)
+    expect(rendered.container.querySelector('[data-id="jsonView-record-view"]')).toBeNull()
+    expect(rendered.container.querySelector('textarea')).toBeNull()
+    expect(onSave).not.toHaveBeenCalled()
+
+    const openRecord = cell?.querySelector('[role="group"]')
+    if (!openRecord) throw new Error('Expected keyboard-accessible record action')
+    await act(async () => { openRecord.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })) })
+    expect(rendered.container.querySelector('[data-id="jsonView-record-view"]')).not.toBeNull()
+    const editor = rendered.container.querySelector('textarea') as HTMLTextAreaElement
+    expect(editor?.value).toBe(notes)
+    expect(document.activeElement).toBe(editor)
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('honors explicit plain-text table fields even when a Markdown renderer is available', async () => {
+    giveVirtualTableAViewport()
+    const notes = '[Primary evidence](https://www.0labs.ai/)'
+    const renderMarkdown = vi.fn(() => <a href="https://www.0labs.ai/">Primary evidence</a>)
+    rendered = await renderComponent(<JSONContent content={JSON.stringify({
+      leads: [{ name: '0Labs', notes }],
+      $jsonviews: { version: 1, schema: { '$.leads[*].notes': { type: 'text', multiline: true } },
+        views: [{ id: 'leads', name: 'Leads', path: '$.leads' }] },
+    })} renderMarkdown={renderMarkdown} />)
+    expect(rendered.container.querySelector('tbody')?.textContent).toContain(notes)
+    expect(rendered.container.querySelector('tbody a')).toBeNull()
+    expect(renderMarkdown).not.toHaveBeenCalled()
+  })
+
   it('opens a record normally from its title without creating a body', async () => {
     giveVirtualTableAViewport()
     const content = JSON.stringify({
