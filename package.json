@@ -23,7 +23,7 @@
   "devDependencies": {
     "postcss": "^8.5.28",
     "typescript": "^5.9.3",
-    "vite": "^7.3.6"
+    "vite": "^7.3.7"
   },
   "overrides": {
     "@tailwindcss/cli": {
