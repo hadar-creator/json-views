@@ -29,7 +29,7 @@
   "devDependencies": {
     "ajv": "^8.20.0",
     "typescript": "^5.9.3",
-    "vitest": "4.1.11"
+    "vitest": "4.1.12"
   },
   "dependencies": {
     "re2js": "^2.8.6"
