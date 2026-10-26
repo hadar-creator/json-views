@@ -2,6 +2,8 @@
 
 An extensible JSON viewer and editor for browsers, React apps, local files, humans, and agents.
 
+<img width="1112" height="559" alt="image" src="https://github.com/user-attachments/assets/5d22fee2-a99d-4dd8-bd56-09c7597f5158" />
+
 The viewer supports adaptive tables, record drill-down, source-preserving edits, declared views, filters, sorting, and Kanban. Its core and React packages are independent of Script.it APIs and styling.
 
 **Release status: public beta.** Feedback is welcome in [GitHub Issues](https://github.com/script-it/json-views/issues). For an example of consuming the published packages, see the [installed-package consumer](examples/consumer/README.md).
